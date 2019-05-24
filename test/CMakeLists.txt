@@ -1,6 +1,22 @@
 add_executable(module-tests
         oatpp-mbedtls/tests.cpp
+        oatpp-mbedtls/FullTest.cpp
+        oatpp-mbedtls/FullTest.hpp
+        oatpp-mbedtls/FullAsyncTest.cpp
+        oatpp-mbedtls/FullAsyncTest.hpp
+        oatpp-mbedtls/app/Controller.hpp
+        oatpp-mbedtls/app/AsyncController.hpp
 )
+
+#################################################################
+## define certificates path
+
+add_definitions(
+        -DCERT_PEM_PATH="${CMAKE_CURRENT_LIST_DIR}/../utility/cert/test_key.pem"
+        -DCERT_CRT_PATH="${CMAKE_CURRENT_LIST_DIR}/../utility/cert/test_cert.crt"
+)
+
+#################################################################
 
 set_target_properties(module-tests PROPERTIES
         CXX_STANDARD 11

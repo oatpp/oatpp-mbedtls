@@ -6,6 +6,8 @@ add_library(${OATPP_THIS_MODULE_NAME}
         oatpp-mbedtls/Connection.hpp
         oatpp-mbedtls/server/ConnectionProvider.cpp
         oatpp-mbedtls/server/ConnectionProvider.hpp
+        oatpp-mbedtls/client/ConnectionProvider.cpp
+        oatpp-mbedtls/client/ConnectionProvider.hpp
 )
 
 set_target_properties(${OATPP_THIS_MODULE_NAME} PROPERTIES

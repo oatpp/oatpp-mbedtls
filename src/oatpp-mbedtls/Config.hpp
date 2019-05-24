@@ -69,7 +69,16 @@ public:
    */
   static std::shared_ptr<Config> createShared();
 
+  /**
+   * Create default server config.
+   * @param serverCertFile - server certificate.
+   * @param privateKeyFile - private key.
+   * @param pkPassword - optional private key password.
+   * @return - `std::shared_ptr` to Config.
+   */
   static std::shared_ptr<Config> createDefaultServerConfigShared(const char* serverCertFile, const char* privateKeyFile, const char* pkPassword = nullptr);
+
+  static std::shared_ptr<Config> createDefaultClientConfigShared();
 
   /**
    * Get underlying mbedtls_ssl_config.

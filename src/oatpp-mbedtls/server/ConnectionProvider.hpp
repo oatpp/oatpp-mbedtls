@@ -28,7 +28,7 @@
 #include "oatpp-mbedtls/Connection.hpp"
 #include "oatpp-mbedtls/Config.hpp"
 
-#include "oatpp/network/ConnectionProvider.hpp"
+#include "oatpp/network/server/SimpleTCPConnectionProvider.hpp"
 
 namespace oatpp { namespace mbedtls { namespace server {
 
@@ -36,21 +36,18 @@ namespace oatpp { namespace mbedtls { namespace server {
  * MbedTLS server connection provider.
  * Extends &id:oatpp::base::Countable;, &id:oatpp::network::ServerConnectionProvider;.
  */
-class ConnectionProvider : public oatpp::base::Countable, public oatpp::network::ServerConnectionProvider {
+class ConnectionProvider : public oatpp::network::ServerConnectionProvider {
 private:
   std::shared_ptr<Config> m_config;
-  v_word16 m_port;
-  bool m_closed;
-  mbedtls_net_context m_serverHandle;
-private:
-  void instantiateServer();
+  std::shared_ptr<oatpp::network::ServerConnectionProvider> m_streamProvider;
 public:
   /**
    * Constructor.
    * @param config - &id:oatpp::mbedtls::Config;.
    * @param port - port to listen on.
    */
-  ConnectionProvider(const std::shared_ptr<Config>& config, v_word16 port);
+  ConnectionProvider(const std::shared_ptr<Config>& config,
+                     const std::shared_ptr<oatpp::network::ServerConnectionProvider>& streamProvider);
 public:
 
   /**
@@ -58,6 +55,9 @@ public:
    * @param config - &id:oatpp::mbedtls::Config;.
    * @param port - port to listen on.
    */
+  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config,
+                                                          const std::shared_ptr<oatpp::network::ServerConnectionProvider>& streamProvider);
+
   static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config, v_word16 port);
 
   /**

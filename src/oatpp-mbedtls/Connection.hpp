@@ -27,6 +27,7 @@
 
 #include "oatpp/core/data/stream/Stream.hpp"
 
+#include "mbedtls/ssl.h"
 #include "mbedtls/net_sockets.h"
 
 namespace oatpp { namespace mbedtls {
@@ -37,17 +38,17 @@ namespace oatpp { namespace mbedtls {
 class Connection : public oatpp::base::Countable, public oatpp::data::stream::IOStream {
 private:
   mbedtls_ssl_context* m_tlsHandle;
-  mbedtls_net_context* m_handle;
+  std::shared_ptr<oatpp::data::stream::IOStream> m_stream;
 private:
-  void setStreamIOMode(oatpp::data::stream::IOMode ioMode);
-  oatpp::data::stream::IOMode getStreamIOMode();
+  static int writeCallback(void *ctx, const unsigned char *buf, size_t len);
+  static int readCallback(void *ctx, unsigned char *buf, size_t len);
 public:
   /**
    * Constructor.
    * @param tlsHandle - `mbedtls_ssl_context*`.
    * @param handle - `mbedtls_net_context*`.
    */
-  Connection(mbedtls_ssl_context* tlsHandle, mbedtls_net_context* handle);
+  Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream);
 public:
 
   /**
@@ -56,9 +57,11 @@ public:
    * @param handle - `mbedtls_net_context*`.
    * @return - `std::shared_ptr` to Connection.
    */
-  static std::shared_ptr<Connection> createShared(mbedtls_ssl_context* tlsHandle, mbedtls_net_context* handle){
-    return std::make_shared<Connection>(tlsHandle, handle);
+  static std::shared_ptr<Connection> createShared(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream){
+    return std::make_shared<Connection>(tlsHandle, stream);
   }
+
+  static void setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, oatpp::data::stream::IOStream* stream);
 
   /**
    * Virtual destructor.
@@ -138,8 +141,8 @@ public:
    * Get socket handle.
    * @return - `mbedtls_net_context*`.
    */
-  mbedtls_net_context* getHandle() {
-    return m_handle;
+  std::shared_ptr<oatpp::data::stream::IOStream> getStream() {
+    return m_stream;
   }
 
 };

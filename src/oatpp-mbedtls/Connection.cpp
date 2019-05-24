@@ -24,22 +24,48 @@
 
 #include "Connection.hpp"
 
-#include <unistd.h>
-#include <fcntl.h>
-
 namespace oatpp { namespace mbedtls {
 
-Connection::Connection(mbedtls_ssl_context* tlsHandle, mbedtls_net_context* handle)
+int Connection::writeCallback(void *ctx, const unsigned char *buf, size_t len) {
+
+  auto stream = static_cast<IOStream*>(ctx);
+
+  auto res = stream->write(buf, len);
+
+  if(res == oatpp::data::IOError::RETRY || res == oatpp::data::IOError::WAIT_RETRY) {
+    return MBEDTLS_ERR_SSL_WANT_WRITE;
+  }
+
+  return res;
+}
+
+int Connection::readCallback(void *ctx, unsigned char *buf, size_t len) {
+
+  auto stream = static_cast<IOStream*>(ctx);
+
+  auto res = stream->read(buf, len);
+
+  if(res == oatpp::data::IOError::RETRY || res == oatpp::data::IOError::WAIT_RETRY) {
+    return MBEDTLS_ERR_SSL_WANT_READ;
+  }
+
+  return res;
+
+}
+
+void Connection::setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, oatpp::data::stream::IOStream* stream) {
+  mbedtls_ssl_set_bio(tlsHandle, stream, writeCallback, readCallback, NULL);
+}
+
+Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream)
   : m_tlsHandle(tlsHandle)
-  , m_handle(handle)
+  , m_stream(stream)
 {
 }
 
 Connection::~Connection(){
   close();
-  mbedtls_net_free(m_handle);
   mbedtls_ssl_free(m_tlsHandle);
-  delete m_handle;
   delete m_tlsHandle;
 }
 
@@ -79,94 +105,32 @@ data::v_io_size Connection::read(void *buff, data::v_io_size count){
 
 }
 
-void Connection::setStreamIOMode(oatpp::data::stream::IOMode ioMode) {
-
-  switch(ioMode) {
-
-    case oatpp::data::stream::IOMode::BLOCKING:
-      if (mbedtls_net_set_block(m_handle) != 0) {
-        throw std::runtime_error("[oatpp::mbedtls::Connection::setStreamIOMode()]: Error. Can't set stream I/O mode to IOMode::BLOCKING.");
-      }
-      break;
-
-    case oatpp::data::stream::IOMode::NON_BLOCKING:
-      if (mbedtls_net_set_nonblock(m_handle) != 0) {
-        throw std::runtime_error("[oatpp::mbedtls::Connection::setStreamIOMode()]: Error. Can't set stream I/O mode to IOMode::NON_BLOCKING.");
-      }
-      break;
-
-  }
-}
-
-oatpp::data::stream::IOMode Connection::getStreamIOMode() {
-
-  auto flags = fcntl(m_handle->fd, F_GETFL);
-  if (flags < 0) {
-    throw std::runtime_error("[oatpp::mbedtls::Connection::getStreamIOMode()]: Error. Can't get socket flags.");
-  }
-
-  if((flags & O_NONBLOCK) > 0) {
-    return oatpp::data::stream::IOMode::NON_BLOCKING;
-  }
-
-  return oatpp::data::stream::IOMode::BLOCKING;
-
-}
-
 oatpp::async::Action Connection::suggestOutputStreamAction(data::v_io_size ioResult) {
-
-  if(ioResult > 0) {
-    return oatpp::async::Action::createIORepeatAction(m_handle->fd, oatpp::async::Action::IOEventType::IO_EVENT_WRITE);
-  }
-
-  switch (ioResult) {
-    case oatpp::data::IOError::WAIT_RETRY:
-      return oatpp::async::Action::createIOWaitAction(m_handle->fd, oatpp::async::Action::IOEventType::IO_EVENT_WRITE);
-    case oatpp::data::IOError::RETRY:
-      return oatpp::async::Action::createIORepeatAction(m_handle->fd, oatpp::async::Action::IOEventType::IO_EVENT_WRITE);
-  }
-
-  throw std::runtime_error("[oatpp::mbedtls::Connection::suggestInputStreamAction()]: Error. Unable to suggest async action for I/O result.");
-
+  return m_stream->suggestOutputStreamAction(ioResult);
 }
 
 oatpp::async::Action Connection::suggestInputStreamAction(data::v_io_size ioResult) {
-
-  if(ioResult > 0) {
-    return oatpp::async::Action::createIORepeatAction(m_handle->fd, oatpp::async::Action::IOEventType::IO_EVENT_READ);
-  }
-
-  switch (ioResult) {
-    case oatpp::data::IOError::WAIT_RETRY:
-      return oatpp::async::Action::createIOWaitAction(m_handle->fd, oatpp::async::Action::IOEventType::IO_EVENT_READ);
-    case oatpp::data::IOError::RETRY:
-      return oatpp::async::Action::createIORepeatAction(m_handle->fd, oatpp::async::Action::IOEventType::IO_EVENT_READ);
-  }
-
-  throw std::runtime_error("[oatpp::mbedtls::Connection::suggestInputStreamAction()]: Error. Unable to suggest async action for I/O result.");
-
-
+  return m_stream->suggestInputStreamAction(ioResult);
 }
 
 void Connection::setOutputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
-  setStreamIOMode(ioMode);
+  m_stream->setOutputStreamIOMode(ioMode);
 }
 
 oatpp::data::stream::IOMode Connection::getOutputStreamIOMode() {
-  return getStreamIOMode();
+  return m_stream->getOutputStreamIOMode();
 }
 
 void Connection::setInputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
-  setStreamIOMode(ioMode);
+  m_stream->setInputStreamIOMode(ioMode);
 }
 
 oatpp::data::stream::IOMode Connection::getInputStreamIOMode() {
-  return getStreamIOMode();
+  return m_stream->getInputStreamIOMode();
 }
 
 
 void Connection::close(){
-  ::close(m_handle->fd);
   mbedtls_ssl_close_notify(m_tlsHandle);
 }
 

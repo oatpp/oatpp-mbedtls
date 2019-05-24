@@ -38,6 +38,12 @@ Config::Config() {
   mbedtls_x509_crt_init(&m_cachain);
   mbedtls_pk_init(&m_privateKey);
 
+  auto res = mbedtls_ctr_drbg_seed(&m_ctr_drbg, mbedtls_entropy_func, &m_entropy, nullptr, 0);
+  if(res != 0) {
+    OATPP_LOGD("[oatpp::mbedtls::Config::Config()]", "Error. Call to mbedtls_ctr_drbg_seed() failed, return value=%d.", res);
+    throw std::runtime_error("[oatpp::mbedtls::Config::Config()]: Error. Call to mbedtls_ctr_drbg_seed() failed.");
+  }
+
 }
 
 Config::~Config() {
@@ -74,12 +80,6 @@ std::shared_ptr<Config> Config::createDefaultServerConfigShared(const char* serv
     throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultServerConfigShared()]: Error. Can't parse privateKeyFile");
   }
 
-  res = mbedtls_ctr_drbg_seed(&result->m_ctr_drbg, mbedtls_entropy_func, &result->m_entropy, nullptr, 0);
-  if(res != 0) {
-    OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultServerConfigShared()]", "Error. Call to mbedtls_ctr_drbg_seed() failed, return value=%d.", res);
-    throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultServerConfigShared()]: Error. Call to mbedtls_ctr_drbg_seed() failed.");
-  }
-
   res = mbedtls_ssl_config_defaults(&result->m_config, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
   if(res != 0) {
     OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultServerConfigShared()]", "Error. Call to mbedtls_ssl_config_defaults() failed, return value=%d.", res);
@@ -93,6 +93,24 @@ std::shared_ptr<Config> Config::createDefaultServerConfigShared(const char* serv
     OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultServerConfigShared()]", "Error. Call to mbedtls_ssl_conf_own_cert() failed, return value=%d.", res);
     throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultServerConfigShared()]: Error. Call to mbedtls_ssl_conf_own_cert() failed.");
   }
+
+  return result;
+
+}
+
+std::shared_ptr<Config> Config::createDefaultClientConfigShared() {
+
+  auto result = createShared();
+
+  auto res = mbedtls_ssl_config_defaults(&result->m_config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+  if(res != 0) {
+    OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_ssl_config_defaults() failed, return value=%d.", res);
+    throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_ssl_config_defaults() failed.");
+  }
+
+  mbedtls_ssl_conf_authmode(&result->m_config, MBEDTLS_SSL_VERIFY_NONE);
+
+  mbedtls_ssl_conf_rng(&result->m_config, mbedtls_ctr_drbg_random, &result->m_ctr_drbg);
 
   return result;
 

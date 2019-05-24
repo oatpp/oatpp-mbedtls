@@ -22,79 +22,58 @@
  *
  ***************************************************************************/
 
-#include "ConnectionProvider.hpp"
+#include "./ConnectionProvider.hpp"
 
+#include "oatpp/network/server/SimpleTCPConnectionProvider.hpp"
 #include "oatpp/core/utils/ConversionUtils.hpp"
 
 #include "mbedtls/error.h"
 
 namespace oatpp { namespace mbedtls { namespace server {
 
-ConnectionProvider::ConnectionProvider(const std::shared_ptr<Config>& config, v_word16 port)
+ConnectionProvider::ConnectionProvider(const std::shared_ptr<Config>& config,
+                                       const std::shared_ptr<oatpp::network::ServerConnectionProvider>& streamProvider)
   : m_config(config)
-  , m_port(port)
-  , m_closed(false)
+  , m_streamProvider(streamProvider)
 {
 
-  setProperty(PROPERTY_HOST, "127.0.0.1");
-  setProperty(PROPERTY_PORT, oatpp::utils::conversion::int32ToStr(port));
-
-  instantiateServer();
+  setProperty(PROPERTY_HOST, streamProvider->getProperty(PROPERTY_HOST).toString());
+  setProperty(PROPERTY_PORT, streamProvider->getProperty(PROPERTY_PORT).toString());
 
 }
 
-std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config, v_word16 port){
-  return std::shared_ptr<ConnectionProvider>(new ConnectionProvider(config, port));
+std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config,
+                                                                     const std::shared_ptr<oatpp::network::ServerConnectionProvider>& streamProvider){
+  return std::shared_ptr<ConnectionProvider>(new ConnectionProvider(config, streamProvider));
+}
+
+std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config, v_word16 port) {
+  return createShared(config, oatpp::network::server::SimpleTCPConnectionProvider::createShared(port));
 }
 
 ConnectionProvider::~ConnectionProvider() {
   close();
 }
 
-void ConnectionProvider::instantiateServer(){
-
-  p_char8 host = getProperty(PROPERTY_HOST).getData();
-  p_char8 port = getProperty(PROPERTY_PORT).getData();
-
-  auto res = mbedtls_net_bind(&m_serverHandle, (const char*) host, (const char*) port, MBEDTLS_NET_PROTO_TCP);
-
-  if(res != 0) {
-    OATPP_LOGD("[oatpp::mbedtls::server::ConnectionProvider::instantiateServer()]", "Error. Call to mbedtls_net_bind() failed. Return value=%d", res);
-    throw std::runtime_error("[oatpp::mbedtls::server::ConnectionProvider::instantiateServer()]: Error. Call to mbedtls_net_bind() failed.");
-  }
-
-}
-
 void ConnectionProvider::close() {
-  if(!m_closed) {
-    m_closed = true;
-    mbedtls_net_free(&m_serverHandle);
-  }
+  m_streamProvider->close();
 }
 
 std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection(){
 
-  auto* clientHandle = new mbedtls_net_context();
-
-  auto res = mbedtls_net_accept(&m_serverHandle, clientHandle, NULL, 0, NULL);
-  if(res != 0) {
-    delete clientHandle;
-    return nullptr;
-  }
+  std::shared_ptr<IOStream> stream = m_streamProvider->getConnection();
 
   auto * tlsHandle = new mbedtls_ssl_context();
   mbedtls_ssl_init(tlsHandle);
 
-  res = mbedtls_ssl_setup(tlsHandle, m_config->getTLSConfig());
+  auto res = mbedtls_ssl_setup(tlsHandle, m_config->getTLSConfig());
   if(res != 0) {
-    mbedtls_net_free(clientHandle);
     mbedtls_ssl_free(tlsHandle);
-    delete clientHandle;
     delete tlsHandle;
     return nullptr;
   }
 
-  mbedtls_ssl_set_bio(tlsHandle, clientHandle, mbedtls_net_send, mbedtls_net_recv, NULL);
+  oatpp::mbedtls::Connection::setTLSStreamBIOCallbacks(tlsHandle, stream.get());
 
   /*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
   /* TODO - remove this loop from here.             */
@@ -105,15 +84,13 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
       v_char8 buff[512];
       mbedtls_strerror(res, (char*)&buff, 512);
       OATPP_LOGD("[oatpp::mbedtls::server::ConnectionProvider::getConnection()]", "Error. Handshake failed. Return value=%d. '%s'", res, buff);
-      mbedtls_net_free(clientHandle);
       mbedtls_ssl_free(tlsHandle);
-      delete clientHandle;
       delete tlsHandle;
       return nullptr;
     }
   }
 
-  return Connection::createShared(tlsHandle, clientHandle);
+  return Connection::createShared(tlsHandle, stream);
 
 }
 

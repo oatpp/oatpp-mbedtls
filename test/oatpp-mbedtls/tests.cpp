@@ -1,7 +1,8 @@
 
 #include "oatpp-test/UnitTest.hpp"
 
-#include "oatpp-mbedtls/Config.hpp"
+#include "FullTest.hpp"
+#include "FullAsyncTest.hpp"
 
 #include "oatpp/core/concurrency/SpinLock.hpp"
 #include "oatpp/core/base/Environment.hpp"
@@ -22,21 +23,10 @@ public:
 
 };
 
-class Test : public oatpp::test::UnitTest {
-public:
-  Test() : oatpp::test::UnitTest("MyTag")
-  {}
-
-  void onRun() override {
-    // TODO write correct  tests
-  }
-};
-
 void runTests() {
 
-  oatpp::mbedtls::Config::createShared();
-
-  OATPP_RUN_TEST(Test);
+  OATPP_RUN_TEST(oatpp::test::mbedtls::FullTest);
+//  OATPP_RUN_TEST(oatpp::test::mbedtls::FullAsyncTest);
 
 }
 
