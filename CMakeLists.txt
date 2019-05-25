@@ -84,8 +84,6 @@ if(OATPP_DIR_LIB)
     link_directories(${OATPP_DIR_LIB})
 endif()
 
-add_compile_options(-pthread)
-
 ###################################################################################################
 ## get dependencies
 

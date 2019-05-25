@@ -40,6 +40,12 @@ add_dependencies(module-tests ${OATPP_THIS_MODULE_NAME})
 
 target_link_oatpp(module-tests)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(module-tests
+        PRIVATE Threads::Threads
+)
+
 target_link_libraries(module-tests
         PRIVATE ${OATPP_THIS_MODULE_NAME}
         PRIVATE ${MBEDTLS_LIBRARY}
