@@ -28,23 +28,27 @@ jobs:
           ./module-tests
         displayName: 'Test'
         workingDirectory: build/test
-#  - job: macOS
-#    displayName: 'Build - macOS'
-#    continueOnError: false
-#    pool:
-#      vmImage: 'macOS-10.14'
-#    workspace:
-#      clean: all
-#    steps:
-#      - script: |
-#          mkdir build
-#      - task: CMake@1
-#      - script: |
-#          cmake -DCMAKE_BUILD_TYPE=Release ..
-#          make
-#        displayName: 'CMake'
-#        workingDirectory: build
-#      - script: |
-#          make test ARGS="-V"
-#        displayName: 'Test'
-#        workingDirectory: build
+  - job: macOS
+    displayName: 'Build - macOS'
+    continueOnError: false
+    pool:
+      vmImage: 'macOS-10.14'
+    workspace:
+      clean: all
+    steps:
+      - script: |
+          ./build-mbedtls.sh
+        workingDirectory: utility/install-deps
+        displayName: 'build MbedTLS'
+      - script: |
+          mkdir build
+      - task: CMake@1
+      - script: |
+          cmake -DMBEDTLS_ROOT_DIR=utility/install-deps/tmp/mbedtls-build -DOATPP_MODULES_LOCATION=EXTERNAL ..
+          make
+        displayName: 'CMake'
+        workingDirectory: build
+      - script: |
+          ./module-tests
+        displayName: 'Test'
+        workingDirectory: build/test
