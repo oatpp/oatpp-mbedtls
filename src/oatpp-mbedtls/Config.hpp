@@ -78,6 +78,10 @@ public:
    */
   static std::shared_ptr<Config> createDefaultServerConfigShared(const char* serverCertFile, const char* privateKeyFile, const char* pkPassword = nullptr);
 
+  /**
+   * Create default client config.
+   * @return - `std::shared_ptr` to Config.
+   */
   static std::shared_ptr<Config> createDefaultClientConfigShared();
 
   /**
