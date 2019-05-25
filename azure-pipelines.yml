@@ -13,16 +13,16 @@ jobs:
       clean: all
     steps:
       - script: |
-          echo ${Agent.BuildDirectory}
+          echo $Agent.BuildDirectory
           ls
       - script: |
           ./build-mbedtls.sh
-          workingDirectory: utility/install-deps/
+        workingDirectory: utility/install-deps
       - script: |
           mkdir build
       - task: CMake@1
       - script: |
-          cmake -DMBEDTLS_ROOT_DIR=${Agent.BuildDirectory}/utility/install-deps/tmp/mbedtls/build -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DMBEDTLS_ROOT_DIR=${Agent.BuildDirectory}/utility/install-deps/tmp/mbedtls/build -DOATPP_MODULES_LOCATION=EXTERNAL ..
           make
         displayName: 'CMake'
         workingDirectory: build
