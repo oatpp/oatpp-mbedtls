@@ -93,26 +93,37 @@ message("## ${OATPP_THIS_MODULE_NAME} module. Resolving dependencies...\n")
 ##############################
 ## Find MbedTLS dependency
 
+unset(MBEDTLS_INCLUDE_DIR CACHE)
+unset(MBEDTLS_LIBRARY CACHE)
+unset(MBEDX509_LIBRARY CACHE)
+unset(MBEDCRYPTO_LIBRARY CACHE)
+
 FIND_PATH(MBEDTLS_INCLUDE_DIR
         NAMES mbedtls/ssl.h
+        HINTS ${MBEDTLS_ROOT_DIR}
         PATH_SUFFIXES include
 )
 
 FIND_LIBRARY(MBEDTLS_LIBRARY
         NAMES mbedtls libmbedtls
+        HINTS ${MBEDTLS_ROOT_DIR}
         PATH_SUFFIXES lib library
 )
 
 FIND_LIBRARY(MBEDX509_LIBRARY
         NAMES mbedx509 libmbedx509
+        HINTS ${MBEDTLS_ROOT_DIR}
         PATH_SUFFIXES lib library
 )
 
 FIND_LIBRARY(MBEDCRYPTO_LIBRARY
         NAMES mbedcrypto libmbedcrypto
+        HINTS ${MBEDTLS_ROOT_DIR}
         PATH_SUFFIXES lib library
 )
 
+message("HINT(PARAM): MBEDTLS_ROOT_DIR=${MBEDTLS_ROOT_DIR}")
+message("---")
 message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
 message("MBEDTLS_LIBRARY=${MBEDTLS_LIBRARY}")
 message("MBEDX509_LIBRARY=${MBEDX509_LIBRARY}")
