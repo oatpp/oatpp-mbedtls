@@ -84,6 +84,8 @@ if(OATPP_DIR_LIB)
     link_directories(${OATPP_DIR_LIB})
 endif()
 
+set(CMAKE_THREAD_PREFER_PTHREAD ON)
+
 ###################################################################################################
 ## get dependencies
 
