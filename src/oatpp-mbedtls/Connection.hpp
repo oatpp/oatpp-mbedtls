@@ -46,7 +46,7 @@ public:
   /**
    * Constructor.
    * @param tlsHandle - `mbedtls_ssl_context*`.
-   * @param handle - `mbedtls_net_context*`.
+   * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
    */
   Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream);
 public:
@@ -54,13 +54,19 @@ public:
   /**
    * Create shared connection.
    * @param tlsHandle - `mbedtls_ssl_context*`.
-   * @param handle - `mbedtls_net_context*`.
+   * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
    * @return - `std::shared_ptr` to Connection.
    */
   static std::shared_ptr<Connection> createShared(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream){
     return std::make_shared<Connection>(tlsHandle, stream);
   }
 
+  /**
+   * Set BIO callbacks for underlying transport stream.<br>
+   * *Should be called before handshake and before passing `tlsHandle` and `stream` to construct `Connection`*
+   * @param tlsHandle - `mbedtls_ssl_context*`.
+   * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
+   */
   static void setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, oatpp::data::stream::IOStream* stream);
 
   /**
@@ -139,7 +145,7 @@ public:
 
   /**
    * Get socket handle.
-   * @return - `mbedtls_net_context*`.
+   * @return - underlying transport stream. &id:oatpp::data::stream::IOStream;.
    */
   std::shared_ptr<oatpp::data::stream::IOStream> getStream() {
     return m_stream;

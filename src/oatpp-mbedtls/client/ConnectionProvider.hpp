@@ -35,7 +35,7 @@ namespace oatpp { namespace mbedtls { namespace client {
  * MbedTLS client connection provider.
  * Extends &id:oatpp::base::Countable;, &id:oatpp::network::ClientConnectionProvider;.
  */
-class ConnectionProvider : public oatpp::network::ClientConnectionProvider {
+class ConnectionProvider : public oatpp::base::Countable, public oatpp::network::ClientConnectionProvider {
 private:
   std::shared_ptr<Config> m_config;
   std::shared_ptr<oatpp::network::ClientConnectionProvider> m_streamProvider;
@@ -43,8 +43,7 @@ public:
   /**
    * Constructor.
    * @param config - &id:oatpp::mbedtls::Config;.
-   * @param host - host name without schema and port. Ex.: "oatpp.io", "127.0.0.1", "localhost".
-   * @param port - server port.
+   * @param streamProvider - provider of underlying transport stream. &id:oatpp::network::ClientConnectionProvider;.
    */
   ConnectionProvider(const std::shared_ptr<Config>& config, const std::shared_ptr<oatpp::network::ClientConnectionProvider>& streamProvider);
 public:
@@ -52,13 +51,20 @@ public:
   /**
    * Create shared ConnectionProvider.
    * @param config - &id:oatpp::mbedtls::Config;.
-   * @param host - host name without schema and port. Ex.: "oatpp.io", "127.0.0.1", "localhost".
-   * @param port - server port.
+   * @param streamProvider - provider of underlying transport stream. &id:oatpp::network::ClientConnectionProvider;.
    * @return - `std::shared_ptr` to ConnectionProvider.
    */
   static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config,
                                                           const std::shared_ptr<oatpp::network::ClientConnectionProvider>& streamProvider);
 
+  /**
+   * Create shared ConnectionProvider using &id:oatpp::network::client::SimpleTCPConnectionProvider;
+   * as a provider of underlying transport stream.
+   * @param config - &id:oatpp::mbedtls::Config;.
+   * @param host - host.
+   * @param port - port.
+   * @return - `std::shared_ptr` to ConnectionProvider.
+   */
   static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config, const oatpp::String& host, v_word16 port);
 
   /**
