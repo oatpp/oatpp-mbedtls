@@ -10,8 +10,9 @@ git clone -b 'mbedtls-2.16.1' --single-branch --depth 1 --recurse-submodules htt
 cd mbedtls
 mkdir build && cd $_
 
-cmake ..
+cmake -DCMAKE_INSTALL_PREFIX:PATH=../../mbedtls-build ..
 make
 make test
+make install
 
 cd ../../../
