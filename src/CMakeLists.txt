@@ -24,11 +24,16 @@ target_link_oatpp(${OATPP_THIS_MODULE_NAME})
 
 target_include_directories(${OATPP_THIS_MODULE_NAME}
         PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        PUBLIC /usr/local/include
+)
+
+target_include_directories(${OATPP_THIS_MODULE_NAME}
+        PUBLIC ${MBEDTLS_INCLUDE_DIR}
 )
 
 target_link_libraries(${OATPP_THIS_MODULE_NAME}
-        PRIVATE mbedtls mbedcrypto mbedx509
+        PRIVATE ${MBEDTLS_LIBRARY}
+        PRIVATE ${MBEDX509_LIBRARY}
+        PRIVATE ${MBEDCRYPTO_LIBRARY}
 )
 
 #######################################################################################################

@@ -93,7 +93,31 @@ message("## ${OATPP_THIS_MODULE_NAME} module. Resolving dependencies...\n")
 ##############################
 ## Find MbedTLS dependency
 
-link_directories(/usr/local/lib)
+FIND_PATH(MBEDTLS_INCLUDE_DIR
+        NAMES mbedtls/ssl.h
+        PATH_SUFFIXES include
+)
+
+FIND_LIBRARY(MBEDTLS_LIBRARY
+        NAMES mbedtls libmbedtls
+        PATH_SUFFIXES lib library
+)
+
+FIND_LIBRARY(MBEDX509_LIBRARY
+        NAMES mbedx509 libmbedx509
+        PATH_SUFFIXES lib library
+)
+
+FIND_LIBRARY(MBEDCRYPTO_LIBRARY
+        NAMES mbedcrypto libmbedcrypto
+        PATH_SUFFIXES lib library
+)
+
+message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
+message("MBEDTLS_LIBRARY=${MBEDTLS_LIBRARY}")
+message("MBEDX509_LIBRARY=${MBEDX509_LIBRARY}")
+message("MBEDCRYPTO_LIBRARY=${MBEDCRYPTO_LIBRARY}")
+
 
 message("\n############################################################################\n")
 
