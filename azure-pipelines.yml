@@ -20,7 +20,7 @@ jobs:
           mkdir build
       - task: CMake@1
       - script: |
-          cmake -DMBEDTLS_ROOT_DIR=/utility/install-deps/tmp/mbedtls-build -DOATPP_MODULES_LOCATION=EXTERNAL ..
+          cmake -DMBEDTLS_ROOT_DIR=utility/install-deps/tmp/mbedtls-build -DOATPP_MODULES_LOCATION=EXTERNAL ..
           make
         displayName: 'CMake'
         workingDirectory: build
