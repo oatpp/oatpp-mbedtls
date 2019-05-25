@@ -4,8 +4,12 @@ add_executable(module-tests
         oatpp-mbedtls/FullTest.hpp
         oatpp-mbedtls/FullAsyncTest.cpp
         oatpp-mbedtls/FullAsyncTest.hpp
+        oatpp-mbedtls/FullAsyncClientTest.cpp
+        oatpp-mbedtls/FullAsyncClientTest.hpp
         oatpp-mbedtls/app/Controller.hpp
         oatpp-mbedtls/app/AsyncController.hpp
+        oatpp-mbedtls/app/Client.hpp
+        oatpp-mbedtls/app/DTOs.hpp
 )
 
 #################################################################

@@ -3,6 +3,7 @@
 
 #include "FullTest.hpp"
 #include "FullAsyncTest.hpp"
+#include "FullAsyncClientTest.hpp"
 
 #include "oatpp/core/concurrency/SpinLock.hpp"
 #include "oatpp/core/base/Environment.hpp"
@@ -25,8 +26,35 @@ public:
 
 void runTests() {
 
-  OATPP_RUN_TEST(oatpp::test::mbedtls::FullTest);
-//  OATPP_RUN_TEST(oatpp::test::mbedtls::FullAsyncTest);
+  {
+
+    oatpp::test::mbedtls::FullTest test_virtual(0, 100);
+    test_virtual.run();
+
+    oatpp::test::mbedtls::FullTest test_port(8000, 10);
+    test_port.run();
+
+  }
+
+  {
+
+    oatpp::test::mbedtls::FullAsyncTest test_virtual(0, 100);
+    test_virtual.run();
+
+    oatpp::test::mbedtls::FullAsyncTest test_port(8000, 10);
+    test_port.run();
+
+  }
+
+  {
+
+    oatpp::test::mbedtls::FullAsyncClientTest test_virtual(0, 10);
+    test_virtual.run(20);
+
+    oatpp::test::mbedtls::FullAsyncClientTest test_port(8000, 10);
+    test_port.run(1);
+
+  }
 
 }
 

@@ -22,29 +22,29 @@
  *
  ***************************************************************************/
 
-#ifndef oatpp_test_web_FullTest_hpp
-#define oatpp_test_web_FullTest_hpp
+#ifndef oatpp_test_web_FullAsyncClientTest_hpp
+#define oatpp_test_web_FullAsyncClientTest_hpp
 
 #include "oatpp-test/UnitTest.hpp"
 
 namespace oatpp { namespace test { namespace mbedtls {
 
-class FullTest : public UnitTest {
+class FullAsyncClientTest : public UnitTest {
 private:
   v_int32 m_port;
-  v_int32 m_iterationsPerStep;
+  v_int32 m_connectionsPerEndpoint;
 public:
-  
-  FullTest(v_int32 port, v_int32 iterationsPerStep)
-    : UnitTest("TEST[web::FullTest]")
+
+  FullAsyncClientTest(v_int32 port, v_int32 connectionsPerEndpoint)
+    : UnitTest("TEST[web::FullAsyncClientTest]")
     , m_port(port)
-    , m_iterationsPerStep(iterationsPerStep)
+    , m_connectionsPerEndpoint(connectionsPerEndpoint)
   {}
 
   void onRun() override;
-  
+
 };
 
 }}}
-  
-#endif /* oatpp_test_web_FullTest_hpp */
+
+#endif /* oatpp_test_web_FullAsyncClientTest_hpp */

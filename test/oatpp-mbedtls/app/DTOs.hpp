@@ -22,29 +22,27 @@
  *
  ***************************************************************************/
 
-#ifndef oatpp_test_web_FullTest_hpp
-#define oatpp_test_web_FullTest_hpp
+#ifndef oatpp_test_web_app_DTOs_hpp
+#define oatpp_test_web_app_DTOs_hpp
 
-#include "oatpp-test/UnitTest.hpp"
+#include "oatpp/core/data/mapping/type/Object.hpp"
+#include "oatpp/core/macro/codegen.hpp"
 
-namespace oatpp { namespace test { namespace mbedtls {
+namespace oatpp { namespace test { namespace mbedtls { namespace app {
 
-class FullTest : public UnitTest {
-private:
-  v_int32 m_port;
-  v_int32 m_iterationsPerStep;
-public:
+#include OATPP_CODEGEN_BEGIN(DTO)
+
+class TestDto : public oatpp::data::mapping::type::Object {
   
-  FullTest(v_int32 port, v_int32 iterationsPerStep)
-    : UnitTest("TEST[web::FullTest]")
-    , m_port(port)
-    , m_iterationsPerStep(iterationsPerStep)
-  {}
-
-  void onRun() override;
+  DTO_INIT(TestDto, Object)
+  
+  DTO_FIELD(String, testValue);
+  DTO_FIELD(Fields<String>::ObjectWrapper, testMap);
   
 };
 
-}}}
+#include OATPP_CODEGEN_END(DTO)
   
-#endif /* oatpp_test_web_FullTest_hpp */
+}}}}
+
+#endif /* oatpp_test_web_app_DTOs_hpp */
