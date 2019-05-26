@@ -12,18 +12,6 @@
 
 namespace {
 
-class Logger : public oatpp::base::Logger {
-private:
-  oatpp::concurrency::SpinLock m_lock;
-public:
-
-  void log(v_int32 priority, const std::string& tag, const std::string& message) override {
-    std::lock_guard<oatpp::concurrency::SpinLock> lock(m_lock);
-    std::cout << tag << ":" << message << "\n";
-  }
-
-};
-
 void runTests() {
 
   {
@@ -63,12 +51,8 @@ void runTests() {
 int main() {
 
   oatpp::base::Environment::init();
-  oatpp::base::Environment::setLogger(new Logger());
 
   runTests();
-
-  oatpp::base::Environment::setLogger(nullptr);
-  oatpp::base::Environment::destroy();
 
   /* Print how much objects were created during app running, and what have left-probably leaked */
   /* Disable object counting for release builds using '-D OATPP_DISABLE_ENV_OBJECT_COUNTERS' flag for better performance */
