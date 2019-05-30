@@ -36,7 +36,7 @@ int Connection::writeCallback(void *ctx, const unsigned char *buf, size_t len) {
     return MBEDTLS_ERR_SSL_WANT_WRITE;
   }
 
-  return res;
+  return (int)res;
 }
 
 int Connection::readCallback(void *ctx, unsigned char *buf, size_t len) {
@@ -49,7 +49,7 @@ int Connection::readCallback(void *ctx, unsigned char *buf, size_t len) {
     return MBEDTLS_ERR_SSL_WANT_READ;
   }
 
-  return res;
+  return (int)res;
 
 }
 
