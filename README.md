@@ -39,7 +39,7 @@ cmake -DCMAKE_INSTALL_PREFIX:PATH=/my/custom/location ..
 make install
 ```
 
-## Build And Install oatpp-mbedtls
+### Build And Install oatpp-mbedtls
 
 If mbedtls was installed to a standard location:
 
