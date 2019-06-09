@@ -9,11 +9,13 @@ See more:
 - [Oat++ Github Repository](https://github.com/oatpp/oatpp)
 - [MbedTLS](https://tls.mbed.org/)
 
-## Requires
+## How To Build
+
+### Requires
 
 - MbedTLS installed.
 
-To install MbedTLS from source:
+#### Install MbedTLS from source
 
 ```bash
 git clone -b 'mbedtls-2.16.1' --single-branch --depth 1 --recurse-submodules https://github.com/ARMmbed/mbedtls
@@ -22,6 +24,36 @@ cd mbedtls
 mkdir build && cd build
 
 cmake ..
+make install
+```
+
+#### Install MbedTLS to a custom location
+
+```bash
+git clone -b 'mbedtls-2.16.1' --single-branch --depth 1 --recurse-submodules https://github.com/ARMmbed/mbedtls
+
+cd mbedtls
+mkdir build && cd build
+
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/my/custom/location ..
+make install
+```
+
+## Build And Install oatpp-mbedtls
+
+If mbedtls was installed to a standard location:
+
+```bash
+mkdir build && cd build
+cmake ..
+make install
+```
+
+If mbedtls was installed to a custom location:
+
+```bash
+mkdir build && cd build
+cmake -DMBEDTLS_ROOT_DIR=/my/custom/location ..
 make install
 ```
 
