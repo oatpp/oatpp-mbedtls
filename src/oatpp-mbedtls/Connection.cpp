@@ -71,7 +71,7 @@ Connection::~Connection(){
 
 data::v_io_size Connection::write(const void *buff, data::v_io_size count){
 
-  auto result = mbedtls_ssl_write(m_tlsHandle, (const unsigned char *) buff, count);
+  auto result = mbedtls_ssl_write(m_tlsHandle, (const unsigned char *) buff, (size_t)count);
 
   if(result >= 0) {
     return result;
@@ -89,7 +89,7 @@ data::v_io_size Connection::write(const void *buff, data::v_io_size count){
 
 data::v_io_size Connection::read(void *buff, data::v_io_size count){
 
-  auto result = mbedtls_ssl_read(m_tlsHandle, (unsigned char *) buff, count);
+  auto result = mbedtls_ssl_read(m_tlsHandle, (unsigned char *) buff, (size_t)count);
 
   if(result >= 0) {
     return result;
