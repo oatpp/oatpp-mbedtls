@@ -105,10 +105,11 @@ public:
 
   ENDPOINT("GET", "header-value-set", headerValueSet,
            HEADER(String, valueSet, "X-VALUE-SET")) {
-    auto set = oatpp::web::protocol::http::Parser::parseHeaderValueSet(valueSet, ',');
-    OATPP_ASSERT_HTTP(set.find("VALUE_1") != set.end(), Status::CODE_400, "No header 'VALUE_1' in value set");
-    OATPP_ASSERT_HTTP(set.find("VALUE_2") != set.end(), Status::CODE_400, "No header 'VALUE_2' in value set");
-    OATPP_ASSERT_HTTP(set.find("VALUE_3") != set.end(), Status::CODE_400, "No header 'VALUE_3' in value set");
+    oatpp::web::protocol::http::HeaderValueData values;
+    oatpp::web::protocol::http::Parser::parseHeaderValueData(values, valueSet, ',');
+    OATPP_ASSERT_HTTP(values.tokens.find("VALUE_1") != values.tokens.end(), Status::CODE_400, "No header 'VALUE_1' in value set");
+    OATPP_ASSERT_HTTP(values.tokens.find("VALUE_2") != values.tokens.end(), Status::CODE_400, "No header 'VALUE_2' in value set");
+    OATPP_ASSERT_HTTP(values.tokens.find("VALUE_3") != values.tokens.end(), Status::CODE_400, "No header 'VALUE_3' in value set");
     return createResponse(Status::CODE_200, "");
   }
 
