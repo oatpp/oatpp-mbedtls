@@ -18,16 +18,26 @@ jobs:
         displayName: 'build MbedTLS'
       - script: |
           mkdir build
-      - task: CMake@1
       - script: |
-          cmake -DMBEDTLS_ROOT_DIR=utility/install-deps/tmp/mbedtls-build -DOATPP_MODULES_LOCATION=EXTERNAL ..
-          make
-        displayName: 'CMake'
+          git clone https://github.com/oatpp/oatpp
+          mkdir -p oatpp/build
+        displayName: 'Checkout - oatpp'
         workingDirectory: build
       - script: |
-          ./module-tests
+          cmake ..
+          sudo make install
+        displayName: 'Build - oatpp'
+        workingDirectory: build/oatpp/build
+      - script: |
+          cmake -DMBEDTLS_ROOT_DIR=utility/install-deps/tmp/mbedtls-build ..
+          make
+        displayName: 'Build - module'
+        workingDirectory: build
+      - script: |
+          make test ARGS="-V"
         displayName: 'Test'
-        workingDirectory: build/test
+        workingDirectory: build
+
   - job: macOS
     displayName: 'Build - macOS'
     continueOnError: false
@@ -42,13 +52,23 @@ jobs:
         displayName: 'build MbedTLS'
       - script: |
           mkdir build
-      - task: CMake@1
       - script: |
-          cmake -DMBEDTLS_ROOT_DIR=utility/install-deps/tmp/mbedtls-build -DOATPP_MODULES_LOCATION=EXTERNAL ..
-          make
-        displayName: 'CMake'
+          git clone https://github.com/oatpp/oatpp
+          mkdir -p oatpp/build
+        displayName: 'Checkout - oatpp'
         workingDirectory: build
       - script: |
-          ./module-tests
+          cmake ..
+          sudo make install
+        displayName: 'Build - oatpp'
+        workingDirectory: build/oatpp/build
+      - script: |
+          cmake -DMBEDTLS_ROOT_DIR=utility/install-deps/tmp/mbedtls-build ..
+          make
+        displayName: 'Build - module'
+        workingDirectory: build
+      - script: |
+          make test ARGS="-V"
         displayName: 'Test'
-        workingDirectory: build/test
+        workingDirectory: build
+
