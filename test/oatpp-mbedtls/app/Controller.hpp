@@ -72,10 +72,10 @@ public:
   }
 
   ENDPOINT("GET", "queries/map", getWithQueriesMap,
-           QUERIES(QueryParams, queries)) {
+           QUERIES(const QueryParams&, queries)) {
     auto dto = TestDto::createShared();
     dto->testMap = dto->testMap->createShared();
-    for(auto& it : queries) {
+    for(auto& it : queries.getAll_Unsafe()) {
       dto->testMap->put(it.first.toString(), it.second.toString());
     }
     return createDtoResponse(Status::CODE_200, dto);
