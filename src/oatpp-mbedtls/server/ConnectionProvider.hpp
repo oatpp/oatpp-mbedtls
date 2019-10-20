@@ -102,6 +102,15 @@ public:
     throw std::runtime_error("oatpp::mbedtls::server::ConnectionProvider::getConnectionAsync not implemented.");
   }
 
+  /**
+   * Does nothing.
+   * @param connection
+   */
+  void invalidateConnection(const std::shared_ptr<IOStream>& connection) override {
+    (void)connection;
+    // DO Nothing.
+  }
+
 };
 
 }}}

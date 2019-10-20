@@ -86,6 +86,15 @@ public:
    */
   oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::stream::IOStream>&> getConnectionAsync() override;
 
+  /**
+   * Does nothing.
+   * @param connection
+   */
+  void invalidateConnection(const std::shared_ptr<IOStream>& connection) override {
+    (void)connection;
+    // DO Nothing.
+  }
+
 };
 
 }}}
