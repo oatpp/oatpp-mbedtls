@@ -37,29 +37,45 @@ namespace oatpp { namespace mbedtls {
  */
 class Connection : public oatpp::base::Countable, public oatpp::data::stream::IOStream {
 private:
+
+  class ConnectionContext : public oatpp::data::stream::Context {
+  private:
+    static std::mutex HANDSHAKE_MUTEX;
+  private:
+    Connection* m_connection;
+    data::stream::StreamType m_streamType;
+  public:
+
+    ConnectionContext(Connection* connection, data::stream::StreamType streamType, Properties&& properties);
+
+    void init() override;
+
+    async::CoroutineStarter initAsync() override;
+
+    bool isInitialized() const override;
+
+    data::stream::StreamType getStreamType() const override;
+
+  };
+
+private:
   mbedtls_ssl_context* m_tlsHandle;
   std::shared_ptr<oatpp::data::stream::IOStream> m_stream;
+  std::atomic<bool> m_initialized;
+private:
+  ConnectionContext* m_inContext;
+  ConnectionContext* m_outContext;
 private:
   static int writeCallback(void *ctx, const unsigned char *buf, size_t len);
   static int readCallback(void *ctx, unsigned char *buf, size_t len);
 public:
+
   /**
    * Constructor.
    * @param tlsHandle - `mbedtls_ssl_context*`.
    * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
    */
-  Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream);
-public:
-
-  /**
-   * Create shared connection.
-   * @param tlsHandle - `mbedtls_ssl_context*`.
-   * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
-   * @return - `std::shared_ptr` to Connection.
-   */
-  static std::shared_ptr<Connection> createShared(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream){
-    return std::make_shared<Connection>(tlsHandle, stream);
-  }
+  Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream, bool initializeds);
 
   /**
    * Set BIO callbacks for underlying transport stream.<br>
@@ -119,6 +135,12 @@ public:
   oatpp::data::stream::IOMode getOutputStreamIOMode() override;
 
   /**
+   * Get output stream context.
+   * @return - &id:oatpp::data::stream::Context;.
+   */
+  oatpp::data::stream::Context& getOutputStreamContext() override;
+
+  /**
    * Set InputStream I/O mode.
    * @param ioMode
    */
@@ -129,6 +151,12 @@ public:
    * @return
    */
   oatpp::data::stream::IOMode getInputStreamIOMode() override;
+
+  /**
+   * Get input stream context. <br>
+   * @return - &id:oatpp::data::stream::Context;.
+   */
+  oatpp::data::stream::Context& getInputStreamContext() override;
 
   /**
    * Close all handles.
