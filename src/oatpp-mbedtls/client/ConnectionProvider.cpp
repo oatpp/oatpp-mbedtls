@@ -61,32 +61,23 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
   if(res != 0) {
     mbedtls_ssl_free(tlsHandle);
     delete tlsHandle;
-    OATPP_LOGD("[oatpp::mbedtls::ConnectionProvider::getConnection()]", "Error. Call to mbedtls_ssl_setup() failed. Return value=%d", res);
-    throw std::runtime_error("[oatpp::mbedtls::ConnectionProvider::getConnection()]: Error. Call to mbedtls_ssl_setup() failed.");
+    OATPP_LOGD("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]", "Error. Call to mbedtls_ssl_setup() failed. Return value=%d", res);
+    throw std::runtime_error("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]: Error. Call to mbedtls_ssl_setup() failed.");
   }
 
   res = mbedtls_ssl_set_hostname(tlsHandle, (const char*) getProperty(PROPERTY_HOST).getData());
   if(res != 0) {
     mbedtls_ssl_free(tlsHandle);
     delete tlsHandle;
-    OATPP_LOGD("[oatpp::mbedtls::ConnectionProvider::getConnection()]", "Error. Call to mbedtls_ssl_set_hostname() failed. Return value=%d", res);
-    throw std::runtime_error("[oatpp::mbedtls::ConnectionProvider::getConnection()]: Error. Call to mbedtls_ssl_set_hostname() failed.");
+    OATPP_LOGD("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]", "Error. Call to mbedtls_ssl_set_hostname() failed. Return value=%d", res);
+    throw std::runtime_error("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]: Error. Call to mbedtls_ssl_set_hostname() failed.");
   }
 
   oatpp::mbedtls::Connection::setTLSStreamBIOCallbacks(tlsHandle, stream.get());
 
-  while((res = mbedtls_ssl_handshake(tlsHandle)) != 0 ) {
-    if(res != MBEDTLS_ERR_SSL_WANT_READ && res != MBEDTLS_ERR_SSL_WANT_WRITE) {
-      v_char8 buff[512];
-      mbedtls_strerror(res, (char*)&buff, 512);
-      OATPP_LOGD("[oatpp::mbedtls::server::ConnectionProvider::getConnection()]", "Error. Handshake failed. Return value=%d. '%s'", res, buff);
-      mbedtls_ssl_free(tlsHandle);
-      delete tlsHandle;
-      return nullptr;
-    }
-  }
-
-  return Connection::createShared(tlsHandle, stream);
+  auto connection = std::make_shared<Connection>(tlsHandle, stream, false);
+  connection->initContexts();
+  return connection;
 
 }
 
@@ -99,6 +90,7 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
   private:
     mbedtls_ssl_context* m_tlsHandle;
     std::shared_ptr<oatpp::data::stream::IOStream> m_stream;
+    std::shared_ptr<Connection> m_connection;
   public:
 
     ConnectCoroutine(const std::shared_ptr<Config>& config, const std::shared_ptr<oatpp::network::ClientConnectionProvider>& streamProvider)
@@ -127,53 +119,31 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
 
       auto res = mbedtls_ssl_setup(m_tlsHandle, m_config->getTLSConfig());
       if(res != 0) {
-        OATPP_LOGD("[oatpp::mbedtls::ConnectionProvider::getConnection()]", "Error. Call to mbedtls_ssl_setup() failed. Return value=%d", res);
-        return error<Error>("[oatpp::mbedtls::ConnectionProvider::getConnection()]: Error. Call to mbedtls_ssl_setup() failed.");
+        OATPP_LOGD("[oatpp::mbedtls::client::ConnectionProvider::getConnectionAsync()]", "Error. Call to mbedtls_ssl_setup() failed. Return value=%d", res);
+        return error<Error>("[oatpp::mbedtls::client::ConnectionProvider::getConnectionAsync()]: Error. Call to mbedtls_ssl_setup() failed.");
       }
 
       res = mbedtls_ssl_set_hostname(m_tlsHandle, (const char*) m_streamProvider->getProperty(PROPERTY_HOST).getData());
       if(res != 0) {
-        OATPP_LOGD("[oatpp::mbedtls::ConnectionProvider::getConnection()]", "Error. Call to mbedtls_ssl_set_hostname() failed. Return value=%d", res);
-        return error<Error>("[oatpp::mbedtls::ConnectionProvider::getConnection()]: Error. Call to mbedtls_ssl_set_hostname() failed.");
+        OATPP_LOGD("[oatpp::mbedtls::client::ConnectionProvider::getConnectionAsync()]", "Error. Call to mbedtls_ssl_set_hostname() failed. Return value=%d", res);
+        return error<Error>("[oatpp::mbedtls::client::ConnectionProvider::getConnectionAsync()]: Error. Call to mbedtls_ssl_set_hostname() failed.");
       }
 
       /* set proper BIO callbacks to read from transport stream */
       oatpp::mbedtls::Connection::setTLSStreamBIOCallbacks(m_tlsHandle, m_stream.get());
 
-      /* yield to handshake */
-      return yieldTo(&ConnectCoroutine::handshake);
+      m_connection = std::make_shared<Connection>(m_tlsHandle, m_stream, false);
+      m_tlsHandle = nullptr;
+
+      m_connection->setOutputStreamIOMode(oatpp::data::stream::IOMode::NON_BLOCKING);
+      m_connection->setInputStreamIOMode(oatpp::data::stream::IOMode::NON_BLOCKING);
+
+      return m_connection->initContextsAsync().next(yieldTo(&ConnectCoroutine::onSuccess));
+
     }
 
-    Action handshake() {
-
-      /* handshake iteration */
-      auto res = mbedtls_ssl_handshake(m_tlsHandle);
-
-      switch(res) {
-
-        case MBEDTLS_ERR_SSL_WANT_READ:
-          /* reschedule to EventIOWorker */
-          return m_stream->suggestInputStreamAction(oatpp::data::IOError::WAIT_RETRY);
-
-        case MBEDTLS_ERR_SSL_WANT_WRITE:
-          /* reschedule to EventIOWorker */
-          return m_stream->suggestOutputStreamAction(oatpp::data::IOError::WAIT_RETRY);
-
-        case 0:
-          /* Handshake successful */
-          auto connection = Connection::createShared(m_tlsHandle, m_stream);
-          m_tlsHandle = nullptr;
-          /* return ready-to-use connection */
-          return _return(connection);
-
-      }
-
-      v_char8 buff[512];
-      mbedtls_strerror(res, (char*)&buff, 512);
-      OATPP_LOGD("[oatpp::mbedtls::server::ConnectionProvider::getConnectionAsync()]", "Error. Handshake failed. Return value=%d. '%s'", res, buff);
-
-      return error<Error>("[[oatpp::mbedtls::server::ConnectionProvider::getConnectionAsync()]]: Error. Handshake failed.");
-
+    Action onSuccess() {
+      return _return(m_connection);
     }
 
 

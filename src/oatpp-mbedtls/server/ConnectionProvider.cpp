@@ -75,22 +75,7 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
 
   oatpp::mbedtls::Connection::setTLSStreamBIOCallbacks(tlsHandle, stream.get());
 
-  /*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
-  /* TODO - remove this loop from here.             */
-  /* It should NOT block accepting thread.          */
-  /*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
-  while((res = mbedtls_ssl_handshake(tlsHandle)) != 0 ) {
-    if(res != MBEDTLS_ERR_SSL_WANT_READ && res != MBEDTLS_ERR_SSL_WANT_WRITE) {
-      v_char8 buff[512];
-      mbedtls_strerror(res, (char*)&buff, 512);
-      OATPP_LOGD("[oatpp::mbedtls::server::ConnectionProvider::getConnection()]", "Error. Handshake failed. Return value=%d. '%s'", res, buff);
-      mbedtls_ssl_free(tlsHandle);
-      delete tlsHandle;
-      return nullptr;
-    }
-  }
-
-  return Connection::createShared(tlsHandle, stream);
+  return std::make_shared<Connection>(tlsHandle, stream, false);
 
 }
 
