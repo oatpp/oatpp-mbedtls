@@ -74,8 +74,9 @@ public:
    * Constructor.
    * @param tlsHandle - `mbedtls_ssl_context*`.
    * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
+   * @param initialized - is stream initialized (do we have handshake already).
    */
-  Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream, bool initializeds);
+  Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream, bool initialized);
 
   /**
    * Set BIO callbacks for underlying transport stream.<br>
