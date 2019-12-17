@@ -116,6 +116,10 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
     Action onConnected(const std::shared_ptr<oatpp::data::stream::IOStream>& stream) {
       /* transport stream obtained */
       m_stream = stream;
+      return yieldTo(&ConnectCoroutine::secureConnection);
+    }
+
+    Action secureConnection() {
 
       auto res = mbedtls_ssl_setup(m_tlsHandle, m_config->getTLSConfig());
       if(res != 0) {

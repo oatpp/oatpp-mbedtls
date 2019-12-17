@@ -138,6 +138,7 @@ public:
   static std::atomic<v_int32> SUCCESS_COUNTER;
 private:
   OATPP_COMPONENT(std::shared_ptr<app::Client>, appClient);
+  std::shared_ptr<IncomingResponse> m_response;
 public:
 
   Action act() override {
@@ -146,7 +147,12 @@ public:
 
   Action onResponse(const std::shared_ptr<IncomingResponse>& response) {
     OATPP_ASSERT(response->getStatusCode() == 200 && "ClientCoroutine_getRootAsync");
-    return response->readBodyToStringAsync().callbackTo(&ClientCoroutine_getRootAsync::onBodyRead);
+    m_response = response;
+    return yieldTo(&ClientCoroutine_getRootAsync::readBody);
+  }
+
+  Action readBody() {
+    return m_response->readBodyToStringAsync().callbackTo(&ClientCoroutine_getRootAsync::onBodyRead);
   }
 
   Action onBodyRead(const oatpp::String& body) {
@@ -178,6 +184,7 @@ public:
 private:
   OATPP_COMPONENT(std::shared_ptr<app::Client>, appClient);
   oatpp::String m_data;
+  std::shared_ptr<IncomingResponse> m_response;
 public:
 
   Action act() override {
@@ -191,7 +198,12 @@ public:
 
   Action onResponse(const std::shared_ptr<IncomingResponse>& response) {
     OATPP_ASSERT(response->getStatusCode() == 200 && "ClientCoroutine_echoBodyAsync");
-    return response->readBodyToStringAsync().callbackTo(&ClientCoroutine_echoBodyAsync::onBodyRead);
+    m_response = response;
+    return yieldTo(&ClientCoroutine_echoBodyAsync::readBody);
+  }
+
+  Action readBody() {
+    return m_response->readBodyToStringAsync().callbackTo(&ClientCoroutine_echoBodyAsync::onBodyRead);
   }
 
   Action onBodyRead(const oatpp::String& body) {

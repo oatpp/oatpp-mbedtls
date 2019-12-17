@@ -77,7 +77,7 @@ void Connection::ConnectionContext::init() {
     }
 
     if (res == MBEDTLS_ERR_SSL_WANT_READ || res == MBEDTLS_ERR_SSL_WANT_WRITE) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
   }
@@ -113,11 +113,11 @@ async::CoroutineStarter Connection::ConnectionContext::initAsync() {
 
         case MBEDTLS_ERR_SSL_WANT_READ:
           /* reschedule to EventIOWorker */
-          return m_connection->suggestInputStreamAction(oatpp::data::IOError::WAIT_RETRY);
+          return m_connection->suggestInputStreamAction(oatpp::data::IOError::WAIT_RETRY_READ);
 
         case MBEDTLS_ERR_SSL_WANT_WRITE:
           /* reschedule to EventIOWorker */
-          return m_connection->suggestOutputStreamAction(oatpp::data::IOError::WAIT_RETRY);
+          return m_connection->suggestOutputStreamAction(oatpp::data::IOError::WAIT_RETRY_WRITE);
 
         case 0:
           /* Handshake successful */
@@ -161,7 +161,8 @@ int Connection::writeCallback(void *ctx, const unsigned char *buf, size_t len) {
 
   auto res = stream->write(buf, len);
 
-  if(res == oatpp::data::IOError::RETRY || res == oatpp::data::IOError::WAIT_RETRY) {
+  if(res == oatpp::data::IOError::RETRY_READ || res == oatpp::data::IOError::WAIT_RETRY_READ ||
+     res == oatpp::data::IOError::RETRY_WRITE || res == oatpp::data::IOError::WAIT_RETRY_WRITE) {
     return MBEDTLS_ERR_SSL_WANT_WRITE;
   }
 
@@ -174,7 +175,8 @@ int Connection::readCallback(void *ctx, unsigned char *buf, size_t len) {
 
   auto res = stream->read(buf, len);
 
-  if(res == oatpp::data::IOError::RETRY || res == oatpp::data::IOError::WAIT_RETRY) {
+  if(res == oatpp::data::IOError::RETRY_READ || res == oatpp::data::IOError::WAIT_RETRY_READ ||
+     res == oatpp::data::IOError::RETRY_WRITE || res == oatpp::data::IOError::WAIT_RETRY_WRITE) {
     return MBEDTLS_ERR_SSL_WANT_READ;
   }
 
@@ -194,12 +196,12 @@ Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oat
 
   auto& streamInContext = stream->getInputStreamContext();
   data::stream::Context::Properties inProperties;
-  for(const auto& pair : streamInContext.getProperties().getAll()) {
+  for(const auto& pair : streamInContext.getProperties().getAll_Unsafe()) {
     inProperties.put(pair.first, pair.second);
   }
 
   inProperties.put("tls", "mbedtls");
-
+  inProperties.getAll();
   m_inContext = new ConnectionContext(this, streamInContext.getStreamType(), std::move(inProperties));
 
 
@@ -209,12 +211,12 @@ Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oat
   } else {
 
     data::stream::Context::Properties outProperties;
-    for(const auto& pair : streamOutContext.getProperties().getAll()) {
+    for(const auto& pair : streamOutContext.getProperties().getAll_Unsafe()) {
       outProperties.put(pair.first, pair.second);
     }
 
     outProperties.put("tls", "mbedtls");
-
+    outProperties.getAll();
     m_outContext = new ConnectionContext(this, streamOutContext.getStreamType(), std::move(outProperties));
 
   }
@@ -242,10 +244,19 @@ data::v_io_size Connection::write(const void *buff, v_buff_size count){
     return result;
   }
 
-  if(result == MBEDTLS_ERR_SSL_WANT_READ || result == MBEDTLS_ERR_SSL_WANT_WRITE ||
-     result == MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS || result == MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS)
-  {
-    return data::IOError::WAIT_RETRY;
+  switch(result) {
+    case MBEDTLS_ERR_SSL_WANT_READ:
+      return oatpp::data::IOError::WAIT_RETRY_READ;
+
+    case MBEDTLS_ERR_SSL_WANT_WRITE:
+      return oatpp::data::IOError::WAIT_RETRY_WRITE;
+
+    case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
+      return oatpp::data::IOError::WAIT_RETRY_WRITE;
+
+    case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
+      return oatpp::data::IOError::WAIT_RETRY_WRITE;
+
   }
 
   return data::IOError::BROKEN_PIPE;
@@ -260,10 +271,19 @@ data::v_io_size Connection::read(void *buff, v_buff_size count){
     return result;
   }
 
-  if(result == MBEDTLS_ERR_SSL_WANT_READ || result == MBEDTLS_ERR_SSL_WANT_WRITE ||
-     result == MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS || result == MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS)
-  {
-    return data::IOError::WAIT_RETRY;
+  switch(result) {
+    case MBEDTLS_ERR_SSL_WANT_READ:
+      return oatpp::data::IOError::WAIT_RETRY_READ;
+
+    case MBEDTLS_ERR_SSL_WANT_WRITE:
+      return oatpp::data::IOError::WAIT_RETRY_WRITE;
+
+    case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
+      return oatpp::data::IOError::WAIT_RETRY_READ;
+
+    case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
+      return oatpp::data::IOError::WAIT_RETRY_READ;
+
   }
 
   return data::IOError::BROKEN_PIPE;
@@ -271,11 +291,25 @@ data::v_io_size Connection::read(void *buff, v_buff_size count){
 }
 
 oatpp::async::Action Connection::suggestOutputStreamAction(data::v_io_size ioResult) {
-  return m_stream->suggestOutputStreamAction(ioResult);
+  switch (ioResult) {
+    case oatpp::data::IOError::RETRY_READ:
+      return m_stream->suggestInputStreamAction(ioResult);
+    case oatpp::data::IOError::WAIT_RETRY_READ:
+      return m_stream->suggestInputStreamAction(ioResult);
+    default:
+      return m_stream->suggestOutputStreamAction(ioResult);
+  }
 }
 
 oatpp::async::Action Connection::suggestInputStreamAction(data::v_io_size ioResult) {
-  return m_stream->suggestInputStreamAction(ioResult);
+  switch (ioResult) {
+    case oatpp::data::IOError::RETRY_WRITE:
+      return m_stream->suggestOutputStreamAction(ioResult);
+    case oatpp::data::IOError::WAIT_RETRY_WRITE:
+      return m_stream->suggestOutputStreamAction(ioResult);
+    default:
+      return m_stream->suggestInputStreamAction(ioResult);
+  }
 }
 
 void Connection::setOutputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
