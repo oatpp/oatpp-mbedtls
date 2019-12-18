@@ -195,13 +195,11 @@ Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oat
 {
 
   auto& streamInContext = stream->getInputStreamContext();
-  data::stream::Context::Properties inProperties;
-  for(const auto& pair : streamInContext.getProperties().getAll_Unsafe()) {
-    inProperties.put(pair.first, pair.second);
-  }
 
+  data::stream::Context::Properties inProperties(streamInContext.getProperties());
   inProperties.put("tls", "mbedtls");
   inProperties.getAll();
+
   m_inContext = new ConnectionContext(this, streamInContext.getStreamType(), std::move(inProperties));
 
 
@@ -210,13 +208,10 @@ Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oat
     m_outContext = m_inContext;
   } else {
 
-    data::stream::Context::Properties outProperties;
-    for(const auto& pair : streamOutContext.getProperties().getAll_Unsafe()) {
-      outProperties.put(pair.first, pair.second);
-    }
-
+    data::stream::Context::Properties outProperties(streamOutContext.getProperties());
     outProperties.put("tls", "mbedtls");
     outProperties.getAll();
+
     m_outContext = new ConnectionContext(this, streamOutContext.getStreamType(), std::move(outProperties));
 
   }
