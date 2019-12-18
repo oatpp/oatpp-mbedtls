@@ -252,10 +252,10 @@ data::v_io_size Connection::write(const void *buff, v_buff_size count){
       return oatpp::data::IOError::WAIT_RETRY_WRITE;
 
     case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
-      return oatpp::data::IOError::WAIT_RETRY_WRITE;
+      return oatpp::data::IOError::RETRY_WRITE;
 
     case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
-      return oatpp::data::IOError::WAIT_RETRY_WRITE;
+      return oatpp::data::IOError::RETRY_WRITE;
 
   }
 
@@ -279,10 +279,10 @@ data::v_io_size Connection::read(void *buff, v_buff_size count){
       return oatpp::data::IOError::WAIT_RETRY_WRITE;
 
     case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
-      return oatpp::data::IOError::WAIT_RETRY_READ;
+      return oatpp::data::IOError::RETRY_READ;
 
     case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
-      return oatpp::data::IOError::WAIT_RETRY_READ;
+      return oatpp::data::IOError::RETRY_READ;
 
   }
 
