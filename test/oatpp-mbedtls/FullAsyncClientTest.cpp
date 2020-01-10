@@ -162,8 +162,8 @@ public:
   }
 
   Action handleError(Error* error) override {
-    if(error->is<oatpp::data::AsyncIOError>()) {
-      auto e = static_cast<oatpp::data::AsyncIOError*>(error);
+    if(error->is<oatpp::AsyncIOError>()) {
+      auto e = static_cast<oatpp::AsyncIOError*>(error);
       OATPP_LOGD("[FullAsyncClientTest::ClientCoroutine_echoBodyAsync::handleError()]", "AsyncIOError. %s, %d", e->what(), e->getCode());
     } else {
       OATPP_LOGD("[FullAsyncClientTest::ClientCoroutine_echoBodyAsync::handleError()]", "Error. %s", error->what());
@@ -190,7 +190,7 @@ public:
   Action act() override {
     oatpp::data::stream::ChunkedBuffer stream;
     for(v_int32 i = 0; i < oatpp::data::buffer::IOBuffer::BUFFER_SIZE; i++) {
-      stream.write("0123456789", 10);
+      stream.writeSimple("0123456789", 10);
     }
     m_data = stream.toString();
     return appClient->echoBodyAsync(m_data).callbackTo(&ClientCoroutine_echoBodyAsync::onResponse);
@@ -214,8 +214,8 @@ public:
 
   Action handleError(Error* error) override {
     if(error) {
-      if(error->is<oatpp::data::AsyncIOError>()) {
-        auto e = static_cast<oatpp::data::AsyncIOError*>(error);
+      if(error->is<oatpp::AsyncIOError>()) {
+        auto e = static_cast<oatpp::AsyncIOError*>(error);
         OATPP_LOGD("[FullAsyncClientTest::ClientCoroutine_echoBodyAsync::handleError()]", "AsyncIOError. %s, %d", e->what(), e->getCode());
       } else {
         OATPP_LOGD("[FullAsyncClientTest::ClientCoroutine_echoBodyAsync::handleError()]", "Error. %s", error->what());
@@ -277,15 +277,7 @@ void FullAsyncClientTest::onRun() {
     OATPP_ASSERT(ClientCoroutine_echoBodyAsync::SUCCESS_COUNTER == -1); // -1 is success
 
     executor->waitTasksFinished(); // Wait executor tasks before quit.
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Stop server and unblock accepting thread
-
-    runner.getServer()->stop();
-    OATPP_COMPONENT(std::shared_ptr<oatpp::network::ClientConnectionProvider>, connectionProvider);
-    connectionProvider->getConnection();
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    executor->stop();
 
   }, std::chrono::minutes(10));
 

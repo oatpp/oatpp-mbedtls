@@ -63,6 +63,10 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
 
   std::shared_ptr<IOStream> stream = m_streamProvider->getConnection();
 
+  if(!stream) {
+    return nullptr;
+  }
+
   auto * tlsHandle = new mbedtls_ssl_context();
   mbedtls_ssl_init(tlsHandle);
 
@@ -72,8 +76,6 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
     delete tlsHandle;
     return nullptr;
   }
-
-  oatpp::mbedtls::Connection::setTLSStreamBIOCallbacks(tlsHandle, stream.get());
 
   return std::make_shared<Connection>(tlsHandle, stream, false);
 

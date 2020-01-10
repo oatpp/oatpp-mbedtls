@@ -73,8 +73,6 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
     throw std::runtime_error("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]: Error. Call to mbedtls_ssl_set_hostname() failed.");
   }
 
-  oatpp::mbedtls::Connection::setTLSStreamBIOCallbacks(tlsHandle, stream.get());
-
   auto connection = std::make_shared<Connection>(tlsHandle, stream, false);
   connection->initContexts();
   return connection;
@@ -133,14 +131,11 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
         return error<Error>("[oatpp::mbedtls::client::ConnectionProvider::getConnectionAsync()]: Error. Call to mbedtls_ssl_set_hostname() failed.");
       }
 
-      /* set proper BIO callbacks to read from transport stream */
-      oatpp::mbedtls::Connection::setTLSStreamBIOCallbacks(m_tlsHandle, m_stream.get());
-
       m_connection = std::make_shared<Connection>(m_tlsHandle, m_stream, false);
       m_tlsHandle = nullptr;
 
-      m_connection->setOutputStreamIOMode(oatpp::data::stream::IOMode::NON_BLOCKING);
-      m_connection->setInputStreamIOMode(oatpp::data::stream::IOMode::NON_BLOCKING);
+      m_connection->setOutputStreamIOMode(oatpp::data::stream::IOMode::ASYNCHRONOUS);
+      m_connection->setInputStreamIOMode(oatpp::data::stream::IOMode::ASYNCHRONOUS);
 
       return m_connection->initContextsAsync().next(yieldTo(&ConnectCoroutine::onSuccess));
 

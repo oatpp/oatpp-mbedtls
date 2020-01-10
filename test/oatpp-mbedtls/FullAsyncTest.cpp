@@ -184,7 +184,7 @@ void FullAsyncTest::onRun() {
       { // test Big Echo with body
         oatpp::data::stream::ChunkedBuffer stream;
         for(v_int32 i = 0; i < oatpp::data::buffer::IOBuffer::BUFFER_SIZE; i++) {
-          stream.write("0123456789", 10);
+          stream.writeSimple("0123456789", 10);
         }
         auto data = stream.toString();
         auto response = client->echoBody(data, connection);
@@ -207,20 +207,12 @@ void FullAsyncTest::onRun() {
     connection.reset();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Stop server and unblock accepting thread
-
-    runner.getServer()->stop();
-    OATPP_COMPONENT(std::shared_ptr<oatpp::network::ClientConnectionProvider>, connectionProvider);
-    connectionProvider->getConnection();
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    
   }, std::chrono::minutes(10));
 
 
   OATPP_COMPONENT(std::shared_ptr<oatpp::async::Executor>, executor);
   executor->waitTasksFinished();
+  executor->stop();
   executor->join();
 
 }

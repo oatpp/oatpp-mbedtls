@@ -38,6 +38,22 @@ namespace oatpp { namespace mbedtls {
 class Connection : public oatpp::base::Countable, public oatpp::data::stream::IOStream {
 private:
 
+  class IOLockGuard {
+  private:
+    Connection* m_connection;
+    async::Action* m_checkAction;
+    bool m_locked;
+  public:
+
+    IOLockGuard(Connection* connection, async::Action* checkAction);
+    ~IOLockGuard();
+
+    bool unpackAndCheck();
+
+  };
+
+private:
+
   class ConnectionContext : public oatpp::data::stream::Context {
   private:
     static std::mutex HANDSHAKE_MUTEX;
@@ -63,9 +79,16 @@ private:
   std::shared_ptr<oatpp::data::stream::IOStream> m_stream;
   std::atomic<bool> m_initialized;
 private:
+  async::Action* m_ioAction;
+  concurrency::SpinLock m_ioLock;
+
+  void packIOAction(async::Action* action);
+  async::Action* unpackIOAction();
+private:
   ConnectionContext* m_inContext;
   ConnectionContext* m_outContext;
 private:
+  static void setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, Connection* connection);
   static int writeCallback(void *ctx, const unsigned char *buf, size_t len);
   static int readCallback(void *ctx, unsigned char *buf, size_t len);
 public:
@@ -79,49 +102,29 @@ public:
   Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream, bool initialized);
 
   /**
-   * Set BIO callbacks for underlying transport stream.<br>
-   * *Should be called before handshake and before passing `tlsHandle` and `stream` to construct `Connection`*
-   * @param tlsHandle - `mbedtls_ssl_context*`.
-   * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
-   */
-  static void setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, oatpp::data::stream::IOStream* stream);
-
-  /**
    * Virtual destructor.
    */
   ~Connection();
 
   /**
-   * Implementation of &id:oatpp::data::stream::OutputStream::write; method.
-   * @param buff - data to write to stream.
-   * @param count - data size.
-   * @return - actual amount of bytes written.
+   * Write operation callback.
+   * @param data - pointer to data.
+   * @param count - size of the data in bytes.
+   * @param action - async specific action. If action is NOT &id:oatpp::async::Action::TYPE_NONE;, then
+   * caller MUST return this action on coroutine iteration.
+   * @return - actual number of bytes written. 0 - to indicate end-of-file.
    */
-  data::v_io_size write(const void *buff, v_buff_size count) override;
+  v_io_size write(const void *data, v_buff_size count, async::Action& action) override;
 
   /**
-   * Implementation of &id:oatpp::data::stream::InputStream::read; method.
-   * @param buff - buffer to read data to.
-   * @param count - buffer size.
-   * @return - actual amount of bytes read.
+   * Read operation callback.
+   * @param buffer - pointer to buffer.
+   * @param count - size of the buffer in bytes.
+   * @param action - async specific action. If action is NOT &id:oatpp::async::Action::TYPE_NONE;, then
+   * caller MUST return this action on coroutine iteration.
+   * @return - actual number of bytes written to buffer. 0 - to indicate end-of-file.
    */
-  data::v_io_size read(void *buff, v_buff_size count) override;
-
-  /**
-   * Implementation of OutputStream must suggest async actions for I/O results.
-   * Suggested Action is used for scheduling coroutines in async::Executor.
-   * @param ioResult - result of the call to &l:OutputStream::write ();.
-   * @return - &id:oatpp::async::Action;.
-   */
-  oatpp::async::Action suggestOutputStreamAction(data::v_io_size ioResult) override;
-
-  /**
-   * Implementation of InputStream must suggest async actions for I/O results.
-   * Suggested Action is used for scheduling coroutines in async::Executor.
-   * @param ioResult - result of the call to &l:InputStream::read ();.
-   * @return - &id:oatpp::async::Action;.
-   */
-  oatpp::async::Action suggestInputStreamAction(data::v_io_size ioResult) override;
+  oatpp::v_io_size read(void *buff, v_buff_size count, async::Action& action) override;
 
   /**
    * Set OutputStream I/O mode.

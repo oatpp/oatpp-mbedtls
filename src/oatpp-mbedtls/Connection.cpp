@@ -53,8 +53,8 @@ void Connection::ConnectionContext::init() {
   auto inIOMode = m_connection->getInputStreamIOMode();
   auto outIOMode = m_connection->getOutputStreamIOMode();
 
-  m_connection->setInputStreamIOMode(data::stream::IOMode::NON_BLOCKING);
-  m_connection->setOutputStreamIOMode(data::stream::IOMode::NON_BLOCKING);
+  m_connection->setInputStreamIOMode(data::stream::IOMode::ASYNCHRONOUS);
+  m_connection->setOutputStreamIOMode(data::stream::IOMode::ASYNCHRONOUS);
 
   int res = -1;
   while(true) {
@@ -63,7 +63,35 @@ void Connection::ConnectionContext::init() {
 
       std::lock_guard<std::mutex> lock(HANDSHAKE_MUTEX);
 
+      async::Action action;
+
+      IOLockGuard ioGuard(m_connection, &action);
+
       res = mbedtls_ssl_handshake(m_connection->m_tlsHandle);
+
+      if(!ioGuard.unpackAndCheck()) {
+        OATPP_LOGE("[oatpp::mbedtls::Connection::ConnectionContext::init()]", "Error. Packed action check failed!!!");
+        return;
+      }
+
+      //////////////////////////////////////////////////
+      //**********************************************//
+      //** NOTE: ASYNC ACTION IS INORED             **//
+      //**********************************************//
+
+      // Ignoring an async action is NOT correct !!!
+      //
+      // The Reason:
+      // The connection is intentionally set to IOMode::ASYNCHRONOUS.
+      // This is a workaround for MbedTLS in order NOT to
+      // block accepting thread having HANDSHAKE_MUTEX locked.
+
+//      if(!action.isNone()) {
+//        OATPP_LOGE("[oatpp::mbedtls::Connection::ConnectionContext::init()]", "Error. Using Async stream as transport for blocking stream!!!");
+//        break;
+//      }
+
+      //////////////////////////////////////////////////
 
       if(res == 0) {
         break;
@@ -104,24 +132,40 @@ async::CoroutineStarter Connection::ConnectionContext::initAsync() {
         return finish();
       }
 
+      m_connection->m_initialized = true;
+      return yieldTo(&HandshakeCoroutine::doInit);
+
+    }
+
+    Action doInit() {
+
       std::lock_guard<std::mutex> lock(HANDSHAKE_MUTEX);
+
+      async::Action action;
+      IOLockGuard ioGuard(m_connection, &action);
 
       /* handshake iteration */
       auto res = mbedtls_ssl_handshake(m_connection->m_tlsHandle);
 
+      if(!ioGuard.unpackAndCheck()) {
+        OATPP_LOGE("[oatpp::mbedtls::Connection::ConnectionContext::initAsync()]", "Error. Packed action check failed!!!");
+        return error<Error>("[oatpp::mbedtls::Connection::ConnectionContext::initAsync()]: Error. Packed action check failed!!!");
+      }
+
+      if(!action.isNone()) {
+        return action;
+      }
+
       switch(res) {
 
         case MBEDTLS_ERR_SSL_WANT_READ:
-          /* reschedule to EventIOWorker */
-          return m_connection->suggestInputStreamAction(oatpp::data::IOError::WAIT_RETRY_READ);
+          return repeat();
 
         case MBEDTLS_ERR_SSL_WANT_WRITE:
-          /* reschedule to EventIOWorker */
-          return m_connection->suggestOutputStreamAction(oatpp::data::IOError::WAIT_RETRY_WRITE);
+          return repeat();
 
         case 0:
           /* Handshake successful */
-          m_connection->m_initialized = true;
           return finish();
 
       }
@@ -131,6 +175,7 @@ async::CoroutineStarter Connection::ConnectionContext::initAsync() {
 //      OATPP_LOGD("[oatpp::mbedtls::Connection::ConnectionContext::initAsync()]", "Error. Handshake failed. Return value=%d. '%s'", res, buff);
 
       return error<Error>("[oatpp::mbedtls::Connection::ConnectionContext::initAsync()]: Error. Handshake failed.");
+
 
     }
 
@@ -153,46 +198,90 @@ data::stream::StreamType Connection::ConnectionContext::getStreamType() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IOLockGuard
+
+Connection::IOLockGuard::IOLockGuard(Connection* connection, async::Action* checkAction)
+  : m_connection(connection)
+  , m_checkAction(checkAction)
+{
+  m_connection->packIOAction(m_checkAction);
+  m_locked = true;
+}
+
+Connection::IOLockGuard::~IOLockGuard() {
+  if(m_locked) {
+    m_connection->m_ioLock.unlock();
+  }
+}
+
+bool Connection::IOLockGuard::unpackAndCheck() {
+  async::Action* check = m_connection->unpackIOAction();
+  m_locked = false;
+  return check == m_checkAction;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Connection
 
 int Connection::writeCallback(void *ctx, const unsigned char *buf, size_t len) {
 
-  auto stream = static_cast<IOStream*>(ctx);
+  auto connection = static_cast<Connection*>(ctx);
+  async::Action* ioAction = connection->unpackIOAction();
 
-  auto res = stream->write(buf, len);
-
-  if(res == oatpp::data::IOError::RETRY_READ || res == oatpp::data::IOError::WAIT_RETRY_READ ||
-     res == oatpp::data::IOError::RETRY_WRITE || res == oatpp::data::IOError::WAIT_RETRY_WRITE) {
-    return MBEDTLS_ERR_SSL_WANT_WRITE;
+  v_io_size res;
+  if(ioAction && ioAction->isNone()) {
+    res = connection->m_stream->write(buf, len, *ioAction);
+    if(res == IOError::RETRY_READ || res == IOError::RETRY_WRITE) {
+      res = MBEDTLS_ERR_SSL_WANT_WRITE;
+    }
+  } else if(ioAction == nullptr) {
+    res = len; // NOTE: Ignore client notification on connection close;
+  } else {
+    res = MBEDTLS_ERR_SSL_WANT_WRITE;
   }
 
+  connection->packIOAction(ioAction);
+
   return (int)res;
+
 }
 
 int Connection::readCallback(void *ctx, unsigned char *buf, size_t len) {
 
-  auto stream = static_cast<IOStream*>(ctx);
 
-  auto res = stream->read(buf, len);
+  auto connection = static_cast<Connection*>(ctx);
+  async::Action* ioAction = connection->unpackIOAction();
 
-  if(res == oatpp::data::IOError::RETRY_READ || res == oatpp::data::IOError::WAIT_RETRY_READ ||
-     res == oatpp::data::IOError::RETRY_WRITE || res == oatpp::data::IOError::WAIT_RETRY_WRITE) {
-    return MBEDTLS_ERR_SSL_WANT_READ;
+  v_io_size res;
+  if(ioAction && ioAction->isNone()) {
+    res = connection->m_stream->read(buf, len, *ioAction);
+    if(res == IOError::RETRY_READ || res == IOError::RETRY_WRITE) {
+      res = MBEDTLS_ERR_SSL_WANT_READ;
+    }
+  } else {
+    res = MBEDTLS_ERR_SSL_WANT_READ;
   }
+
+  connection->packIOAction(ioAction);
 
   return (int)res;
 
+
 }
 
-void Connection::setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, oatpp::data::stream::IOStream* stream) {
-  mbedtls_ssl_set_bio(tlsHandle, stream, writeCallback, readCallback, NULL);
+void Connection::setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, Connection* connection) {
+  mbedtls_ssl_set_bio(tlsHandle, connection, writeCallback, readCallback, NULL);
 }
 
 Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream, bool initialized)
   : m_tlsHandle(tlsHandle)
   , m_stream(stream)
   , m_initialized(initialized)
+  , m_ioAction(nullptr)
 {
+
+  setTLSStreamBIOCallbacks(m_tlsHandle, this);
 
   auto& streamInContext = stream->getInputStreamContext();
 
@@ -231,80 +320,68 @@ Connection::~Connection(){
   delete m_tlsHandle;
 }
 
-data::v_io_size Connection::write(const void *buff, v_buff_size count){
+void Connection::packIOAction(async::Action* action) {
+  m_ioLock.lock();
+  m_ioAction = action;
+}
+
+async::Action* Connection::unpackIOAction() {
+  auto result = m_ioAction;
+  m_ioAction = nullptr;
+  m_ioLock.unlock();
+  return result;
+}
+
+v_io_size Connection::write(const void *buff, v_buff_size count, async::Action& action){
+
+  IOLockGuard ioGuard(this, &action);
 
   auto result = mbedtls_ssl_write(m_tlsHandle, (const unsigned char *) buff, (size_t)count);
 
-  if(result >= 0) {
-    return result;
+  if(!ioGuard.unpackAndCheck()) {
+    OATPP_LOGE("[oatpp::mbedtls::Connection::write(...)]", "Error. Packed action check failed!!!");
+    return oatpp::IOError::BROKEN_PIPE;
   }
 
-  switch(result) {
-    case MBEDTLS_ERR_SSL_WANT_READ:
-      return oatpp::data::IOError::WAIT_RETRY_READ;
-
-    case MBEDTLS_ERR_SSL_WANT_WRITE:
-      return oatpp::data::IOError::WAIT_RETRY_WRITE;
-
-    case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
-      return oatpp::data::IOError::RETRY_WRITE;
-
-    case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
-      return oatpp::data::IOError::RETRY_WRITE;
-
+  if(result < 0) {
+    switch (result) {
+      case MBEDTLS_ERR_SSL_WANT_READ:           return oatpp::IOError::RETRY_WRITE;
+      case MBEDTLS_ERR_SSL_WANT_WRITE:          return oatpp::IOError::RETRY_WRITE;
+      case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:   return oatpp::IOError::RETRY_WRITE;
+      case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:  return oatpp::IOError::RETRY_WRITE;
+      default:
+        return oatpp::IOError::BROKEN_PIPE;
+    }
   }
 
-  return data::IOError::BROKEN_PIPE;
+  return result;
 
 }
 
-data::v_io_size Connection::read(void *buff, v_buff_size count){
+v_io_size Connection::read(void *buff, v_buff_size count, async::Action& action){
+
+  IOLockGuard ioGuard(this, &action);
 
   auto result = mbedtls_ssl_read(m_tlsHandle, (unsigned char *) buff, (size_t)count);
 
-  if(result >= 0) {
-    return result;
+  if(!ioGuard.unpackAndCheck()) {
+    OATPP_LOGE("[oatpp::mbedtls::Connection::read(...)]", "Error. Packed action check failed!!!");
+    return oatpp::IOError::BROKEN_PIPE;
   }
 
-  switch(result) {
-    case MBEDTLS_ERR_SSL_WANT_READ:
-      return oatpp::data::IOError::WAIT_RETRY_READ;
-
-    case MBEDTLS_ERR_SSL_WANT_WRITE:
-      return oatpp::data::IOError::WAIT_RETRY_WRITE;
-
-    case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
-      return oatpp::data::IOError::RETRY_READ;
-
-    case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
-      return oatpp::data::IOError::RETRY_READ;
-
+  if(result < 0) {
+    switch (result) {
+      case MBEDTLS_ERR_SSL_WANT_READ:           return oatpp::IOError::RETRY_READ;
+      case MBEDTLS_ERR_SSL_WANT_WRITE:          return oatpp::IOError::RETRY_READ;
+      case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:   return oatpp::IOError::RETRY_READ;
+      case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:  return oatpp::IOError::RETRY_READ;
+      default:
+        return oatpp::IOError::BROKEN_PIPE;
+    }
   }
 
-  return data::IOError::BROKEN_PIPE;
+  return result;
 
-}
-
-oatpp::async::Action Connection::suggestOutputStreamAction(data::v_io_size ioResult) {
-  switch (ioResult) {
-    case oatpp::data::IOError::RETRY_READ:
-      return m_stream->suggestInputStreamAction(ioResult);
-    case oatpp::data::IOError::WAIT_RETRY_READ:
-      return m_stream->suggestInputStreamAction(ioResult);
-    default:
-      return m_stream->suggestOutputStreamAction(ioResult);
-  }
-}
-
-oatpp::async::Action Connection::suggestInputStreamAction(data::v_io_size ioResult) {
-  switch (ioResult) {
-    case oatpp::data::IOError::RETRY_WRITE:
-      return m_stream->suggestOutputStreamAction(ioResult);
-    case oatpp::data::IOError::WAIT_RETRY_WRITE:
-      return m_stream->suggestOutputStreamAction(ioResult);
-    default:
-      return m_stream->suggestInputStreamAction(ioResult);
-  }
 }
 
 void Connection::setOutputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
