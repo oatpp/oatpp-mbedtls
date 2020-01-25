@@ -47,7 +47,7 @@ std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::
   return std::shared_ptr<ConnectionProvider>(new ConnectionProvider(config, streamProvider));
 }
 
-std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config, v_word16 port) {
+std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config, v_uint16 port) {
   return createShared(config, oatpp::network::server::SimpleTCPConnectionProvider::createShared(port));
 }
 

@@ -65,7 +65,7 @@ public:
    * @param port - port.
    * @return - `std::shared_ptr` to ConnectionProvider.
    */
-  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config, const oatpp::String& host, v_word16 port);
+  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config, const oatpp::String& host, v_uint16 port);
 
   /**
    * Implements &id:oatpp::network::ConnectionProvider::close;. Here does nothing.

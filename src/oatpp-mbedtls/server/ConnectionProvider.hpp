@@ -66,7 +66,7 @@ public:
    * @param port - port to listen on.
    * @return - `std::shared_ptr` to ConnectionProvider.
    */
-  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config, v_word16 port);
+  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config, v_uint16 port);
 
   /**
    * Virtual destructor.
