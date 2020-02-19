@@ -48,9 +48,9 @@ target_link_libraries(module-tests
 
 target_link_libraries(module-tests
         PRIVATE ${OATPP_THIS_MODULE_NAME}
-        PRIVATE ${MBEDTLS_LIBRARY}
-        PRIVATE ${MBEDX509_LIBRARY}
-        PRIVATE ${MBEDCRYPTO_LIBRARY}
+        PRIVATE mbedtls::TLS
+        PRIVATE mbedtls::X509
+        PRIVATE mbedtls::Crypto
 )
 
 add_test(module-tests module-tests)

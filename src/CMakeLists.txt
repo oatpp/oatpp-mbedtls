@@ -31,10 +31,14 @@ target_include_directories(${OATPP_THIS_MODULE_NAME}
 )
 
 target_link_libraries(${OATPP_THIS_MODULE_NAME}
-        PRIVATE ${MBEDTLS_LIBRARY}
-        PRIVATE ${MBEDX509_LIBRARY}
-        PRIVATE ${MBEDCRYPTO_LIBRARY}
+        PRIVATE mbedtls::TLS
+        PRIVATE mbedtls::X509
+        PRIVATE mbedtls::Crypto
 )
+
+if(${OATPP_MBEDTLS_DEBUG} GREATER 0)
+    target_compile_definitions(${OATPP_THIS_MODULE_NAME} PUBLIC "OATPP_MBEDTLS_DEBUG=${OATPP_MBEDTLS_DEBUG}")
+endif()
 
 #######################################################################################################
 ## install targets
