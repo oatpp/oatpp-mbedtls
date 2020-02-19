@@ -24,6 +24,7 @@ option(OATPP_BUILD_TESTS "Build tests for this module" ON)
 option(OATPP_INSTALL "Install module binaries" ON)
 
 set(OATPP_MODULES_LOCATION "INSTALLED" CACHE STRING "Location where to find oatpp modules. can be [INSTALLED|EXTERNAL|CUSTOM]")
+set(OATPP_MBEDTLS_DEBUG "0" CACHE STRING "The debug-level of mbedtls")
 
 ###################################################################################################
 ## get oatpp main module in specified location
@@ -93,41 +94,18 @@ message("## ${OATPP_THIS_MODULE_NAME} module. Resolving dependencies...\n")
 ##############################
 ## Find MbedTLS dependency
 
-unset(MBEDTLS_INCLUDE_DIR CACHE)
-unset(MBEDTLS_LIBRARY CACHE)
-unset(MBEDX509_LIBRARY CACHE)
-unset(MBEDCRYPTO_LIBRARY CACHE)
+include(FindPkgConfig)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/module")
 
-FIND_PATH(MBEDTLS_INCLUDE_DIR
-        NAMES mbedtls/ssl.h
-        HINTS ${MBEDTLS_ROOT_DIR}
-        PATH_SUFFIXES include
-)
+find_package(mbedtls 2.16.0 REQUIRED)
 
-FIND_LIBRARY(MBEDTLS_LIBRARY
-        NAMES mbedtls libmbedtls
-        HINTS ${MBEDTLS_ROOT_DIR}
-        PATH_SUFFIXES lib library
-)
-
-FIND_LIBRARY(MBEDX509_LIBRARY
-        NAMES mbedx509 libmbedx509
-        HINTS ${MBEDTLS_ROOT_DIR}
-        PATH_SUFFIXES lib library
-)
-
-FIND_LIBRARY(MBEDCRYPTO_LIBRARY
-        NAMES mbedcrypto libmbedcrypto
-        HINTS ${MBEDTLS_ROOT_DIR}
-        PATH_SUFFIXES lib library
-)
-
-message("HINT(PARAM): MBEDTLS_ROOT_DIR=${MBEDTLS_ROOT_DIR}")
-message("---")
 message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
-message("MBEDTLS_LIBRARY=${MBEDTLS_LIBRARY}")
-message("MBEDX509_LIBRARY=${MBEDX509_LIBRARY}")
-message("MBEDCRYPTO_LIBRARY=${MBEDCRYPTO_LIBRARY}")
+message("MBEDTLS_TLS_LIBRARY=${MBEDTLS_TLS_LIBRARY}")
+message("MBEDTLS_SSL_LIBRARY=${MBEDTLS_SSL_LIBRARY}")
+message("MBEDTLS_X509_LIBRARY=${MBEDTLS_X509_LIBRARY}")
+message("MBEDTLS_CRYPTO_LIBRARY=${MBEDTLS_CRYPTO_LIBRARY}")
+message("MBEDTLS_LIBRARIES=${MBEDTLS_LIBRARIES}")
+message("MBEDTLS_VERSION=${MBEDTLS_VERSION}")
 
 
 message("\n############################################################################\n")

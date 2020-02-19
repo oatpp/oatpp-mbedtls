@@ -7,6 +7,7 @@
  *
  *
  * Copyright 2018-present, Leonid Stryzhevskyi <lganzzzo@gmail.com>
+ *                         Benedikt-Alexander Mokroß <bam@icognize.de>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +26,16 @@
 #include "Config.hpp"
 
 #include "oatpp/core/base/Environment.hpp"
+
+#if defined(OATPP_MBEDTLS_DEBUG)
+#include <mbedtls/debug.h>
+namespace oatpp { namespace mbedtls {
+static void mbedtlsDebug( void *ctx, int level, const char *file, int line, const char *str ) {
+  OATPP_LOGD("[mbedtls]", "[%s] %d - %s:%04d: %s", (char*)ctx, level, file, line, str)
+}
+}}
+#endif
+
 
 namespace oatpp { namespace mbedtls {
 
@@ -68,6 +79,11 @@ std::shared_ptr<Config> Config::createDefaultServerConfigShared(const char* serv
 
   auto result = createShared();
 
+#if defined(OATPP_MBEDTLS_DEBUG)
+  mbedtls_ssl_conf_dbg( &result->m_config, mbedtlsDebug, (void*)"Server" );
+  mbedtls_debug_set_threshold( OATPP_MBEDTLS_DEBUG );
+#endif
+
   auto res = mbedtls_x509_crt_parse_file(&result->m_srvcert, serverCertFile);
   if(res != 0) {
     OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultServerConfigShared()]", "Error. Can't parse serverCertFile path='%s', return value=%d", serverCertFile, res);
@@ -98,17 +114,36 @@ std::shared_ptr<Config> Config::createDefaultServerConfigShared(const char* serv
 
 }
 
-std::shared_ptr<Config> Config::createDefaultClientConfigShared() {
+std::shared_ptr<Config> Config::createDefaultClientConfigShared(bool throwOnVerificationFailed, const char* caRootCertFile) {
 
   auto result = createShared();
+  v_int32 res;
 
-  auto res = mbedtls_ssl_config_defaults(&result->m_config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+#if defined(OATPP_MBEDTLS_DEBUG)
+  mbedtls_ssl_conf_dbg( &result->m_config, mbedtlsDebug, (void*)"Client" );
+  mbedtls_debug_set_threshold( OATPP_MBEDTLS_DEBUG );
+#endif
+
+  result->m_throwOnVerificationFailed = throwOnVerificationFailed;
+
+  res = mbedtls_ssl_config_defaults(&result->m_config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
   if(res != 0) {
     OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_ssl_config_defaults() failed, return value=%d.", res);
     throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_ssl_config_defaults() failed.");
   }
 
-  mbedtls_ssl_conf_authmode(&result->m_config, MBEDTLS_SSL_VERIFY_NONE);
+
+  if(caRootCertFile != nullptr) {
+    res = mbedtls_x509_crt_parse_file(&result->m_cachain, caRootCertFile);
+    if (res != 0) {
+      OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_x509_crt_parse_file() failed, return value=%d.", res);
+      throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_x509_crt_parse_file() failed.");
+    }
+    mbedtls_ssl_conf_authmode(&result->m_config, MBEDTLS_SSL_VERIFY_REQUIRED);
+    mbedtls_ssl_conf_ca_chain(&result->m_config, &result->m_cachain, nullptr );
+  } else {
+    mbedtls_ssl_conf_authmode(&result->m_config, MBEDTLS_SSL_VERIFY_NONE);
+  }
 
   mbedtls_ssl_conf_rng(&result->m_config, mbedtls_ctr_drbg_random, &result->m_ctr_drbg);
 
@@ -138,6 +173,10 @@ mbedtls_x509_crt* Config::getCAChain() {
 
 mbedtls_pk_context* Config::getPrivateKey() {
   return &m_privateKey;
+}
+
+bool Config::shouldThrowOnVerificationFailed() {
+  return m_throwOnVerificationFailed;
 }
 
 }}

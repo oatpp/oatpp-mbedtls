@@ -7,6 +7,7 @@
  *
  *
  * Copyright 2018-present, Leonid Stryzhevskyi <lganzzzo@gmail.com>
+ *                         Benedikt-Alexander Mokroß <bam@icognize.de>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +53,7 @@ std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::
 
 std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection(){
 
+  v_int32 flags;
   auto stream = m_streamProvider->getConnection();
 
   auto * tlsHandle = new mbedtls_ssl_context();
@@ -75,6 +77,19 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
 
   auto connection = std::make_shared<Connection>(tlsHandle, stream, false);
   connection->initContexts();
+
+  if(m_config->shouldThrowOnVerificationFailed()) {
+    if ((flags = mbedtls_ssl_get_verify_result(tlsHandle)) != 0) {
+      char vrfy_buf[512];
+      mbedtls_x509_crt_verify_info(vrfy_buf, sizeof(vrfy_buf), "", flags);
+      OATPP_LOGE("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]",
+                 "Server certificate verification failed: %s",
+                 vrfy_buf);
+      mbedtls_ssl_free(tlsHandle);
+      throw std::runtime_error("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]: Error. Server certificate verification failed.");
+    }
+  }
+
   return connection;
 
 }
@@ -137,8 +152,20 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
       m_connection->setOutputStreamIOMode(oatpp::data::stream::IOMode::ASYNCHRONOUS);
       m_connection->setInputStreamIOMode(oatpp::data::stream::IOMode::ASYNCHRONOUS);
 
-      return m_connection->initContextsAsync().next(yieldTo(&ConnectCoroutine::onSuccess));
+      return m_connection->initContextsAsync().next(yieldTo(&ConnectCoroutine::verifyServerCertificate));
 
+    }
+
+    Action verifyServerCertificate() {
+      v_int32 flags;
+      if( ( flags = mbedtls_ssl_get_verify_result( m_connection->getTlsHandle() ) ) != 0 )
+      {
+        char vrfy_buf[512];
+        mbedtls_x509_crt_verify_info( vrfy_buf, sizeof( vrfy_buf ), "", flags );
+        OATPP_LOGW("[oatpp::mbedtls::client::ConnectionProvider::getConnection()]", "Server certificate verification failed: %s", vrfy_buf);
+      }
+
+      return yieldTo(&ConnectCoroutine::onSuccess);
     }
 
     Action onSuccess() {

@@ -7,6 +7,7 @@
  *
  *
  * Copyright 2018-present, Leonid Stryzhevskyi <lganzzzo@gmail.com>
+ *                         Benedikt-Alexander Mokroß <bam@icognize.de>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +52,8 @@ private:
   mbedtls_x509_crt m_cachain;
   mbedtls_pk_context m_privateKey;
 
+  bool m_throwOnVerificationFailed;
+
 public:
 
   /**
@@ -80,9 +83,11 @@ public:
 
   /**
    * Create default client config.
+   * @param throwOnVerificationFailed - throw error on server certificate
+   * @param caRootCertFile - path to the CA Root certificate to verificate against
    * @return - `std::shared_ptr` to Config.
    */
-  static std::shared_ptr<Config> createDefaultClientConfigShared();
+  static std::shared_ptr<Config> createDefaultClientConfigShared(bool throwOnVerificationFailed = false, const char* caRootCertFile = nullptr);
 
   /**
    * Get underlying mbedtls_ssl_config.
@@ -119,6 +124,12 @@ public:
    * @return - `mbedtls_pk_context*`
    */
   mbedtls_pk_context* getPrivateKey();
+
+  /**
+   * Returns true if server certificate verification is required
+   * @return - `bool`
+   */
+  bool shouldThrowOnVerificationFailed();
 
 };
 
