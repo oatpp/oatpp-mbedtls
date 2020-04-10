@@ -87,13 +87,10 @@ public:
   oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::stream::IOStream>&> getConnectionAsync() override;
 
   /**
-   * Does nothing.
-   * @param connection
+   * Will call `invalidateConnection()` for the underlying transport stream.
+   * @param connection - **MUST** be an instance of &id:oatpp::mbedtls::Connection;.
    */
-  void invalidateConnection(const std::shared_ptr<IOStream>& connection) override {
-    (void)connection;
-    // DO Nothing.
-  }
+  void invalidateConnection(const std::shared_ptr<IOStream>& connection) override;
 
 };
 

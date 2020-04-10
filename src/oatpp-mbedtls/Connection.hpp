@@ -163,9 +163,9 @@ public:
   oatpp::data::stream::Context& getInputStreamContext() override;
 
   /**
-   * Close all handles.
+   * Close TLS handles.
    */
-  void close();
+  void closeTLS();
 
   /**
    * Get TLS handle.
@@ -176,12 +176,10 @@ public:
   }
 
   /**
-   * Get socket handle.
+   * Get the underlying transport stream.
    * @return - underlying transport stream. &id:oatpp::data::stream::IOStream;.
    */
-  std::shared_ptr<oatpp::data::stream::IOStream> getStream() {
-    return m_stream;
-  }
+  std::shared_ptr<data::stream::IOStream> getTransportStream();
 
 };
 

@@ -315,7 +315,7 @@ Connection::~Connection(){
     delete m_inContext;
     delete m_outContext;
   }
-  close();
+  closeTLS();
   mbedtls_ssl_free(m_tlsHandle);
   delete m_tlsHandle;
 }
@@ -408,8 +408,12 @@ oatpp::data::stream::Context& Connection::getInputStreamContext() {
   return *m_inContext;
 }
 
-void Connection::close(){
+void Connection::closeTLS(){
   mbedtls_ssl_close_notify(m_tlsHandle);
+}
+
+std::shared_ptr<data::stream::IOStream> Connection::getTransportStream() {
+  return m_stream;
 }
 
 }}
