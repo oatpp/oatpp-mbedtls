@@ -73,7 +73,7 @@ const char* serverPrivateKeyFile = "path/to/server/private/key";
 auto config = oatpp::mbedtls::Config::createDefaultServerConfigShared(serverCertificateFile, serverPrivateKeyFile);
 
 /* Create Secure Connection Provider */
-auto connectionProvider = oatpp::mbedtls::server::ConnectionProvider::createShared(config, 443 /* port */);
+auto connectionProvider = oatpp::mbedtls::server::ConnectionProvider::createShared(config, {"localhost" /* host */, 443 /* port */});
 
 /* Get Secure Connection Stream */
 auto connection = connectionProvider->getConnection();
@@ -92,7 +92,7 @@ auto config = oatpp::mbedtls::Config::createDefaultServerConfigShared(serverCert
 
 /* Create Transport Stream Provider */
 /* Replace With Your Custom Transport Stream Provider */
-auto transportStreamProvider = oatpp::network::server::SimpleTCPConnectionProvider::createShared(443 /* port */);
+auto transportStreamProvider = oatpp::network::tcp::server::ConnectionProvider::createShared({"localhost" /* host */, 443 /* port */});
 
 /* Create Secure Connection Provider */
 auto connectionProvider = oatpp::mbedtls::server::ConnectionProvider::createShared(config, transportStreamProvider);
@@ -117,7 +117,7 @@ Create `ConnectionProvider`
 auto config = oatpp::mbedtls::Config::createDefaultClientConfigShared();
 
 /* Create Secure Connection Provider */
-auto connectionProvider = oatpp::mbedtls::client::ConnectionProvider::createShared(config, "httpbin.org", 443 /* port */);
+auto connectionProvider = oatpp::mbedtls::client::ConnectionProvider::createShared(config, {"httpbin.org", 443 /* port */});
 
 /* Get Secure Connection Stream */
 auto connection = connectionProvider->getConnection();
@@ -133,7 +133,7 @@ auto config = oatpp::mbedtls::Config::createDefaultClientConfigShared();
 
 /* Create Transport Stream Provider */
 /* Replace With Your Custom Transport Stream Provider */
-auto transportStreamProvider = oatpp::network::client::SimpleTCPConnectionProvider::createShared("httpbin.org", 443 /* port */);
+auto transportStreamProvider = oatpp::network::client::SimpleTCPConnectionProvider::createShared({"httpbin.org", 443 /* port */});
 
 /* Create Secure Connection Provider */
 auto connectionProvider = oatpp::mbedtls::client::ConnectionProvider::createShared(config, transportStreamProvider);

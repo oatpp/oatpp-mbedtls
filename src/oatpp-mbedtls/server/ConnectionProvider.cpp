@@ -24,7 +24,7 @@
 
 #include "./ConnectionProvider.hpp"
 
-#include "oatpp/network/server/SimpleTCPConnectionProvider.hpp"
+#include "oatpp/network/tcp/server/ConnectionProvider.hpp"
 #include "oatpp/core/utils/ConversionUtils.hpp"
 
 #include "mbedtls/error.h"
@@ -43,25 +43,32 @@ ConnectionProvider::ConnectionProvider(const std::shared_ptr<Config>& config,
 }
 
 std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config,
-                                                                     const std::shared_ptr<oatpp::network::ServerConnectionProvider>& streamProvider){
+                                                                     const std::shared_ptr<network::ServerConnectionProvider>& streamProvider)
+{
   return std::shared_ptr<ConnectionProvider>(new ConnectionProvider(config, streamProvider));
 }
 
-std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config, v_uint16 port) {
-  return createShared(config, oatpp::network::server::SimpleTCPConnectionProvider::createShared(port));
+std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config,
+                                                                     const network::Address& address,
+                                                                     bool useExtendedConnections)
+{
+  return createShared(
+    config,
+    network::tcp::server::ConnectionProvider::createShared(address, useExtendedConnections)
+  );
 }
 
 ConnectionProvider::~ConnectionProvider() {
-  close();
+  stop();
 }
 
-void ConnectionProvider::close() {
-  m_streamProvider->close();
+void ConnectionProvider::stop() {
+  m_streamProvider->stop();
 }
 
-std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection(){
+std::shared_ptr<data::stream::IOStream> ConnectionProvider::get(){
 
-  std::shared_ptr<IOStream> stream = m_streamProvider->getConnection();
+  std::shared_ptr<data::stream::IOStream> stream = m_streamProvider->get();
 
   if(!stream) {
     return nullptr;
@@ -81,7 +88,7 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
 
 }
 
-void ConnectionProvider::invalidateConnection(const std::shared_ptr<IOStream>& connection) {
+void ConnectionProvider::invalidate(const std::shared_ptr<data::stream::IOStream>& connection) {
 
   auto c = std::static_pointer_cast<oatpp::mbedtls::Connection>(connection);
 
@@ -97,7 +104,7 @@ void ConnectionProvider::invalidateConnection(const std::shared_ptr<IOStream>& c
 
   /* Invalidate underlying transport */
   auto s = c->getTransportStream();
-  m_streamProvider->invalidateConnection(s);
+  m_streamProvider->invalidate(s);
 
 }
 

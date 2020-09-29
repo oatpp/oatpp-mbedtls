@@ -25,7 +25,7 @@
 
 #include "./ConnectionProvider.hpp"
 
-#include "oatpp/network/client/SimpleTCPConnectionProvider.hpp"
+#include "oatpp/network/tcp/client/ConnectionProvider.hpp"
 
 #include "oatpp-mbedtls/Connection.hpp"
 
@@ -43,18 +43,24 @@ ConnectionProvider::ConnectionProvider(const std::shared_ptr<Config>& config,
 }
 
 std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config,
-                                                                     const std::shared_ptr<oatpp::network::ClientConnectionProvider>& streamProvider) {
+                                                                     const std::shared_ptr<network::ClientConnectionProvider>& streamProvider)
+{
   return std::shared_ptr<ConnectionProvider>(new ConnectionProvider(config, streamProvider));
 }
 
-std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config, const oatpp::String& host, v_uint16 port) {
-  return createShared(config, oatpp::network::client::SimpleTCPConnectionProvider::createShared(host, port));
+std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::shared_ptr<Config>& config,
+                                                                     const network::Address& address)
+{
+  return createShared(
+    config,
+    network::tcp::client::ConnectionProvider::createShared(address)
+  );
 }
 
-std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection(){
+std::shared_ptr<data::stream::IOStream> ConnectionProvider::get(){
 
   v_int32 flags;
-  auto stream = m_streamProvider->getConnection();
+  auto stream = m_streamProvider->get();
 
   auto * tlsHandle = new mbedtls_ssl_context();
   mbedtls_ssl_init(tlsHandle);
@@ -94,9 +100,9 @@ std::shared_ptr<oatpp::data::stream::IOStream> ConnectionProvider::getConnection
 
 }
 
-oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::stream::IOStream>&> ConnectionProvider::getConnectionAsync() {
+oatpp::async::CoroutineStarterForResult<const std::shared_ptr<data::stream::IOStream>&> ConnectionProvider::getAsync() {
 
-  class ConnectCoroutine : public oatpp::async::CoroutineWithResult<ConnectCoroutine, const std::shared_ptr<oatpp::data::stream::IOStream>&> {
+  class ConnectCoroutine : public oatpp::async::CoroutineWithResult<ConnectCoroutine, const std::shared_ptr<data::stream::IOStream>&> {
   private:
     std::shared_ptr<Config> m_config;
     std::shared_ptr<oatpp::network::ClientConnectionProvider> m_streamProvider;
@@ -106,7 +112,7 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
     std::shared_ptr<Connection> m_connection;
   public:
 
-    ConnectCoroutine(const std::shared_ptr<Config>& config, const std::shared_ptr<oatpp::network::ClientConnectionProvider>& streamProvider)
+    ConnectCoroutine(const std::shared_ptr<Config>& config, const std::shared_ptr<network::ClientConnectionProvider>& streamProvider)
       : m_config(config)
       , m_streamProvider(streamProvider)
       , m_tlsHandle(new mbedtls_ssl_context())
@@ -123,7 +129,7 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
 
     Action act() override {
       /* get transport stream */
-      return m_streamProvider->getConnectionAsync().callbackTo(&ConnectCoroutine::onConnected);
+      return m_streamProvider->getAsync().callbackTo(&ConnectCoroutine::onConnected);
     }
 
     Action onConnected(const std::shared_ptr<oatpp::data::stream::IOStream>& stream) {
@@ -179,7 +185,7 @@ oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::strea
 
 }
 
-void ConnectionProvider::invalidateConnection(const std::shared_ptr<IOStream>& connection) {
+void ConnectionProvider::invalidate(const std::shared_ptr<data::stream::IOStream>& connection) {
 
   auto c = std::static_pointer_cast<oatpp::mbedtls::Connection>(connection);
 
@@ -195,7 +201,7 @@ void ConnectionProvider::invalidateConnection(const std::shared_ptr<IOStream>& c
 
   /* Invalidate underlying transport */
   auto s = c->getTransportStream();
-  m_streamProvider->invalidateConnection(s);
+  m_streamProvider->invalidate(s);
 
 
 }

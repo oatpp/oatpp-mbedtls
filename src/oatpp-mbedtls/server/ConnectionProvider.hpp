@@ -28,7 +28,8 @@
 #include "oatpp-mbedtls/Connection.hpp"
 #include "oatpp-mbedtls/Config.hpp"
 
-#include "oatpp/network/server/SimpleTCPConnectionProvider.hpp"
+#include "oatpp/network/Address.hpp"
+#include "oatpp/network/tcp/server/ConnectionProvider.hpp"
 
 namespace oatpp { namespace mbedtls { namespace server {
 
@@ -60,13 +61,16 @@ public:
                                                           const std::shared_ptr<oatpp::network::ServerConnectionProvider>& streamProvider);
 
   /**
-   * Create shared ConnectionProvider using &id:oatpp::network::server::SimpleTCPConnectionProvider;
-   * as a provider of underlying transport stream.
+   * Create shared ConnectionProvider.
    * @param config - &id:oatpp::mbedtls::Config;.
-   * @param port - port to listen on.
+   * @param address - &id:oatpp::network::Address;.
+   * @param useExtendedConnections - set `true` to use &l:ConnectionProvider::ExtendedConnection;.
+   * `false` to use &id:oatpp::network::tcp::Connection;.
    * @return - `std::shared_ptr` to ConnectionProvider.
    */
-  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config, v_uint16 port);
+  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<Config>& config,
+                                                          const network::Address& address,
+                                                          bool useExtendedConnections = false);
 
   /**
    * Virtual destructor.
@@ -76,13 +80,13 @@ public:
   /**
    * Close all handles.
    */
-  void close() override;
+  void stop() override;
 
   /**
    * Get incoming connection.
    * @return &id:oatpp::data::stream::IOStream;.
    */
-  std::shared_ptr<IOStream> getConnection() override;
+  std::shared_ptr<data::stream::IOStream> get() override;
 
   /**
    * No need to implement this.<br>
@@ -92,7 +96,7 @@ public:
    * <br>
    * *It may be implemented later*
    */
-  oatpp::async::CoroutineStarterForResult<const std::shared_ptr<oatpp::data::stream::IOStream>&> getConnectionAsync() override {
+  oatpp::async::CoroutineStarterForResult<const std::shared_ptr<data::stream::IOStream>&> getAsync() override {
     /*
      *  No need to implement this.
      *  For Asynchronous IO in oatpp it is considered to be a good practice
@@ -106,7 +110,7 @@ public:
    * Will call `invalidateConnection()` for the underlying transport stream.
    * @param connection - **MUST** be an instance of &id:oatpp::mbedtls::Connection;.
    */
-  void invalidateConnection(const std::shared_ptr<IOStream>& connection) override;
+  void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override;
 
 };
 
