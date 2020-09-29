@@ -27,7 +27,7 @@ target_include_directories(${OATPP_THIS_MODULE_NAME}
 )
 
 target_include_directories(${OATPP_THIS_MODULE_NAME}
-        PUBLIC ${MBEDTLS_INCLUDE_DIR}
+        PUBLIC $<BUILD_INTERFACE:${MBEDTLS_INCLUDE_DIR}>
 )
 
 target_link_libraries(${OATPP_THIS_MODULE_NAME}
