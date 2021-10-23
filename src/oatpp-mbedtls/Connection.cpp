@@ -231,7 +231,7 @@ int Connection::writeCallback(void *ctx, const unsigned char *buf, size_t len) {
 
   v_io_size res;
   if(ioAction && ioAction->isNone()) {
-    res = connection->m_stream->write(buf, len, *ioAction);
+    res = connection->m_stream.object->write(buf, len, *ioAction);
     if(res == IOError::RETRY_READ || res == IOError::RETRY_WRITE) {
       res = MBEDTLS_ERR_SSL_WANT_WRITE;
     }
@@ -255,7 +255,7 @@ int Connection::readCallback(void *ctx, unsigned char *buf, size_t len) {
 
   v_io_size res;
   if(ioAction && ioAction->isNone()) {
-    res = connection->m_stream->read(buf, len, *ioAction);
+    res = connection->m_stream.object->read(buf, len, *ioAction);
     if(res == IOError::RETRY_READ || res == IOError::RETRY_WRITE) {
       res = MBEDTLS_ERR_SSL_WANT_READ;
     }
@@ -274,7 +274,7 @@ void Connection::setTLSStreamBIOCallbacks(mbedtls_ssl_context* tlsHandle, Connec
   mbedtls_ssl_set_bio(tlsHandle, connection, writeCallback, readCallback, NULL);
 }
 
-Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream, bool initialized)
+Connection::Connection(mbedtls_ssl_context* tlsHandle, const provider::ResourceHandle<data::stream::IOStream>& stream, bool initialized)
   : m_tlsHandle(tlsHandle)
   , m_stream(stream)
   , m_initialized(initialized)
@@ -283,7 +283,7 @@ Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oat
 
   setTLSStreamBIOCallbacks(m_tlsHandle, this);
 
-  auto& streamInContext = stream->getInputStreamContext();
+  auto& streamInContext = stream.object->getInputStreamContext();
 
   data::stream::Context::Properties inProperties(streamInContext.getProperties());
   inProperties.put("tls", "mbedtls");
@@ -292,7 +292,7 @@ Connection::Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oat
   m_inContext = new ConnectionContext(this, streamInContext.getStreamType(), std::move(inProperties));
 
 
-  auto& streamOutContext = stream->getOutputStreamContext();
+  auto& streamOutContext = stream.object->getOutputStreamContext();
   if(streamInContext == streamOutContext) {
     m_outContext = m_inContext;
   } else {
@@ -385,11 +385,11 @@ v_io_size Connection::read(void *buff, v_buff_size count, async::Action& action)
 }
 
 void Connection::setOutputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
-  m_stream->setOutputStreamIOMode(ioMode);
+  m_stream.object->setOutputStreamIOMode(ioMode);
 }
 
 oatpp::data::stream::IOMode Connection::getOutputStreamIOMode() {
-  return m_stream->getOutputStreamIOMode();
+  return m_stream.object->getOutputStreamIOMode();
 }
 
 oatpp::data::stream::Context& Connection::getOutputStreamContext() {
@@ -397,11 +397,11 @@ oatpp::data::stream::Context& Connection::getOutputStreamContext() {
 }
 
 void Connection::setInputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
-  m_stream->setInputStreamIOMode(ioMode);
+  m_stream.object->setInputStreamIOMode(ioMode);
 }
 
 oatpp::data::stream::IOMode Connection::getInputStreamIOMode() {
-  return m_stream->getInputStreamIOMode();
+  return m_stream.object->getInputStreamIOMode();
 }
 
 oatpp::data::stream::Context& Connection::getInputStreamContext() {
@@ -412,7 +412,7 @@ void Connection::closeTLS(){
   mbedtls_ssl_close_notify(m_tlsHandle);
 }
 
-std::shared_ptr<data::stream::IOStream> Connection::getTransportStream() {
+provider::ResourceHandle<data::stream::IOStream> Connection::getTransportStream() {
   return m_stream;
 }
 

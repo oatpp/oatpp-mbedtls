@@ -25,6 +25,7 @@
 #ifndef oatpp_mbedtls_Connection_hpp
 #define oatpp_mbedtls_Connection_hpp
 
+#include "oatpp/core/provider/Provider.hpp"
 #include "oatpp/core/data/stream/Stream.hpp"
 
 #include "mbedtls/ssl.h"
@@ -76,7 +77,7 @@ private:
 
 private:
   mbedtls_ssl_context* m_tlsHandle;
-  std::shared_ptr<oatpp::data::stream::IOStream> m_stream;
+  provider::ResourceHandle<data::stream::IOStream> m_stream;
   std::atomic<bool> m_initialized;
 private:
   async::Action* m_ioAction;
@@ -99,7 +100,7 @@ public:
    * @param stream - underlying transport stream. &id:oatpp::data::stream::IOStream;.
    * @param initialized - is stream initialized (do we have handshake already).
    */
-  Connection(mbedtls_ssl_context* tlsHandle, const std::shared_ptr<oatpp::data::stream::IOStream>& stream, bool initialized);
+  Connection(mbedtls_ssl_context* tlsHandle, const provider::ResourceHandle<data::stream::IOStream>& stream, bool initialized);
 
   /**
    * Virtual destructor.
@@ -179,7 +180,7 @@ public:
    * Get the underlying transport stream.
    * @return - underlying transport stream. &id:oatpp::data::stream::IOStream;.
    */
-  std::shared_ptr<data::stream::IOStream> getTransportStream();
+  provider::ResourceHandle<data::stream::IOStream> getTransportStream();
 
 };
 

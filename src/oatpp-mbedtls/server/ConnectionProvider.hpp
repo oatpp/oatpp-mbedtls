@@ -37,8 +37,16 @@ namespace oatpp { namespace mbedtls { namespace server {
  * MbedTLS server connection provider.
  * Extends &id:oatpp::base::Countable;, &id:oatpp::network::ServerConnectionProvider;.
  */
-class ConnectionProvider : public oatpp::base::Countable, public oatpp::network::ServerConnectionProvider {
+class ConnectionProvider : public oatpp::network::ServerConnectionProvider {
 private:
+
+  class ConnectionInvalidator : public provider::Invalidator<data::stream::IOStream> {
+  public:
+    void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override;
+  };
+
+private:
+  std::shared_ptr<ConnectionInvalidator> m_connectionInvalidator;
   std::shared_ptr<Config> m_config;
   std::shared_ptr<oatpp::network::ServerConnectionProvider> m_streamProvider;
 public:
@@ -86,7 +94,7 @@ public:
    * Get incoming connection.
    * @return &id:oatpp::data::stream::IOStream;.
    */
-  std::shared_ptr<data::stream::IOStream> get() override;
+  provider::ResourceHandle<data::stream::IOStream> get() override;
 
   /**
    * No need to implement this.<br>
@@ -96,7 +104,7 @@ public:
    * <br>
    * *It may be implemented later*
    */
-  oatpp::async::CoroutineStarterForResult<const std::shared_ptr<data::stream::IOStream>&> getAsync() override {
+  oatpp::async::CoroutineStarterForResult<const provider::ResourceHandle<data::stream::IOStream>&> getAsync() override {
     /*
      *  No need to implement this.
      *  For Asynchronous IO in oatpp it is considered to be a good practice
@@ -105,12 +113,6 @@ public:
      */
     throw std::runtime_error("oatpp::mbedtls::server::ConnectionProvider::getConnectionAsync not implemented.");
   }
-
-  /**
-   * Will call `invalidateConnection()` for the underlying transport stream.
-   * @param connection - **MUST** be an instance of &id:oatpp::mbedtls::Connection;.
-   */
-  void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override;
 
 };
 

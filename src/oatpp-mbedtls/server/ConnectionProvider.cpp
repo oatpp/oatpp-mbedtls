@@ -31,9 +31,30 @@
 
 namespace oatpp { namespace mbedtls { namespace server {
 
+void ConnectionProvider::ConnectionInvalidator::invalidate(const std::shared_ptr<data::stream::IOStream> &connection){
+
+  auto c = std::static_pointer_cast<oatpp::mbedtls::Connection>(connection);
+
+  /********************************************
+   * WARNING!!!
+   *
+   * c->closeTLS(); <--- DO NOT
+   *
+   * DO NOT CLOSE or DELETE TLS handles here.
+   * Remember - other threads can still be
+   * waiting for TLS events.
+   ********************************************/
+
+  /* Invalidate underlying transport */
+  auto s = c->getTransportStream();
+  s.invalidator->invalidate(s.object);
+
+}
+
 ConnectionProvider::ConnectionProvider(const std::shared_ptr<Config>& config,
                                        const std::shared_ptr<oatpp::network::ServerConnectionProvider>& streamProvider)
-  : m_config(config)
+  : m_connectionInvalidator(std::make_shared<ConnectionInvalidator>())
+  , m_config(config)
   , m_streamProvider(streamProvider)
 {
 
@@ -66,45 +87,28 @@ void ConnectionProvider::stop() {
   m_streamProvider->stop();
 }
 
-std::shared_ptr<data::stream::IOStream> ConnectionProvider::get(){
+provider::ResourceHandle<data::stream::IOStream> ConnectionProvider::get() {
 
-  std::shared_ptr<data::stream::IOStream> stream = m_streamProvider->get();
+  auto stream = m_streamProvider->get();
 
-  if(!stream) {
+  if (!stream) {
     return nullptr;
   }
 
-  auto * tlsHandle = new mbedtls_ssl_context();
+  auto *tlsHandle = new mbedtls_ssl_context();
   mbedtls_ssl_init(tlsHandle);
 
   auto res = mbedtls_ssl_setup(tlsHandle, m_config->getTLSConfig());
-  if(res != 0) {
+  if (res != 0) {
     mbedtls_ssl_free(tlsHandle);
     delete tlsHandle;
     return nullptr;
   }
 
-  return std::make_shared<Connection>(tlsHandle, stream, false);
-
-}
-
-void ConnectionProvider::invalidate(const std::shared_ptr<data::stream::IOStream>& connection) {
-
-  auto c = std::static_pointer_cast<oatpp::mbedtls::Connection>(connection);
-
-  /********************************************
-   * WARNING!!!
-   *
-   * c->closeTLS(); <--- DO NOT
-   *
-   * DO NOT CLOSE or DELETE TLS handles here.
-   * Remember - other threads can still be
-   * waiting for TLS events.
-   ********************************************/
-
-  /* Invalidate underlying transport */
-  auto s = c->getTransportStream();
-  m_streamProvider->invalidate(s);
+  return provider::ResourceHandle<data::stream::IOStream>(
+    std::make_shared<Connection>(tlsHandle, stream, false),
+    m_connectionInvalidator
+    );
 
 }
 
