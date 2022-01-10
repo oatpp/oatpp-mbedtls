@@ -49,6 +49,7 @@ private:
   mbedtls_entropy_context m_entropy;
   mbedtls_ctr_drbg_context m_ctr_drbg;
   mbedtls_x509_crt m_srvcert;
+  mbedtls_x509_crt m_clientcert;
   mbedtls_x509_crt m_cachain;
   mbedtls_pk_context m_privateKey;
 
@@ -88,6 +89,16 @@ public:
    * @return - `std::shared_ptr` to Config.
    */
   static std::shared_ptr<Config> createDefaultClientConfigShared(bool throwOnVerificationFailed = false, const char* caRootCertFile = nullptr);
+
+  /**
+   * Create default client config.
+   * @param throwOnVerificationFailed - throw error on server certificate
+   * @param caRootCert - string buffer containing the CA Root certificate to verify against
+   * @param clientCert - string buffer containing the client certificate
+   * @param privateKey - string buffer containing the private key
+   * @return - `std::shared_ptr` to Config.
+   */
+  static std::shared_ptr<Config> createDefaultClientConfigShared(bool throwOnVerificationFailed, std::string caRootCert, std::string clientCert, std::string privateKey);
 
   /**
    * Get underlying mbedtls_ssl_config.

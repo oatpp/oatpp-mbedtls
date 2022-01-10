@@ -46,6 +46,7 @@ Config::Config() {
   mbedtls_entropy_init(&m_entropy);
   mbedtls_ctr_drbg_init(&m_ctr_drbg);
   mbedtls_x509_crt_init(&m_srvcert);
+  mbedtls_x509_crt_init(&m_clientcert);
   mbedtls_x509_crt_init(&m_cachain);
   mbedtls_pk_init(&m_privateKey);
 
@@ -65,6 +66,7 @@ Config::~Config() {
 
   mbedtls_ctr_drbg_free(&m_ctr_drbg);
   mbedtls_x509_crt_free(&m_srvcert);
+  mbedtls_x509_crt_free(&m_clientcert);
   mbedtls_x509_crt_free(&m_cachain);
 
   mbedtls_pk_free(&m_privateKey);
@@ -149,6 +151,64 @@ std::shared_ptr<Config> Config::createDefaultClientConfigShared(bool throwOnVeri
 
   return result;
 
+}
+
+std::shared_ptr<Config> Config::createDefaultClientConfigShared(bool throwOnVerificationFailed, std::string caRootCert, std::string clientCert, std::string privateKey) {
+  auto result = createShared();
+  v_int32 res;
+
+#if defined(OATPP_MBEDTLS_DEBUG)
+  mbedtls_ssl_conf_dbg( &result->m_config, mbedtlsDebug, (void*)"Client" );
+  mbedtls_debug_set_threshold( OATPP_MBEDTLS_DEBUG );
+#endif
+
+  result->m_throwOnVerificationFailed = throwOnVerificationFailed;
+
+  res = mbedtls_ssl_config_defaults(&result->m_config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+  if(res != 0) {
+    OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_ssl_config_defaults() failed, return value=%d.", res);
+    throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_ssl_config_defaults() failed.");
+  }
+
+  if (caRootCert.size())
+  {
+	res = mbedtls_x509_crt_parse(&result->m_cachain, (const unsigned char *)caRootCert.data(), caRootCert.size()+1);
+	if (res != 0) {
+		OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_x509_crt_parse() failed, return value=%d.", res);
+		throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_x509_crt_parse() failed.");
+	}
+	mbedtls_ssl_conf_authmode(&result->m_config, MBEDTLS_SSL_VERIFY_REQUIRED);
+	mbedtls_ssl_conf_ca_chain(&result->m_config, &result->m_cachain, nullptr );
+  } else {
+    mbedtls_ssl_conf_authmode(&result->m_config, MBEDTLS_SSL_VERIFY_NONE);
+  }
+  mbedtls_ssl_conf_rng(&result->m_config, mbedtls_ctr_drbg_random, &result->m_ctr_drbg);
+
+  if (clientCert.size())
+  {
+	res = mbedtls_x509_crt_parse(&result->m_clientcert, (const unsigned char *)clientCert.data(), clientCert.size()+1);
+	if (res != 0) {
+		OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_x509_crt_parse() failed, return value=%d.", res);
+		throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_x509_crt_parse() failed.");
+	}
+  }
+
+  if (privateKey.size())
+  {
+	res = mbedtls_pk_parse_key(&result->m_privateKey, (const unsigned char *)privateKey.data(), privateKey.size()+1, NULL, 0);
+	if (res != 0) {
+		OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_pk_parse_key() failed, return value=%d.", res);
+		throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_pk_parse_key() failed.");
+	}
+  }
+
+  res = mbedtls_ssl_conf_own_cert(&result->m_config, &result->m_clientcert, &result->m_privateKey);
+  if(res != 0) {
+    OATPP_LOGD("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]", "Error. Call to mbedtls_ssl_conf_own_cert() failed, return value=%d.", res);
+    throw std::runtime_error("[oatpp::mbedtls::Config::createDefaultClientConfigShared()]: Error. Call to mbedtls_ssl_conf_own_cert() failed.");
+  }
+
+  return result;
 }
 
 mbedtls_ssl_config* Config::getTLSConfig() {
