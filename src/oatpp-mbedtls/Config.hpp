@@ -34,6 +34,7 @@
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/error.h"
 
+#include <string>
 #include <memory>
 
 namespace oatpp { namespace mbedtls {
