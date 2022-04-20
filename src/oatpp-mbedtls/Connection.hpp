@@ -182,6 +182,33 @@ public:
    */
   provider::ResourceHandle<data::stream::IOStream> getTransportStream();
 
+public:
+  class SslHandshakeError : public std::runtime_error {
+  private:
+    v_int32 m_errorCode;
+    const char* m_message;
+  public:
+
+    /**
+     * Constructor.
+     * @param errorCode - error code.
+     * @param message - error message.
+     */
+    SslHandshakeError(v_int32 errorCode, const char* message);
+
+    /**
+     * Get error code.
+     * @return - error code.
+     */
+    v_int32 getErrorCode() const;
+
+    /**
+     * Get error message.
+     * @return - error message.
+     */
+    const char* getMessage() const;
+  };
+
 };
 
 }}
