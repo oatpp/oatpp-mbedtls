@@ -32,6 +32,23 @@
 namespace oatpp { namespace mbedtls {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SslHandshakeError
+
+  Connection::SslHandshakeError::SslHandshakeError(v_int32 errorCode, const char* message)
+  : std::runtime_error(message)
+  , m_errorCode(errorCode)
+  , m_message(message)
+  {}
+  
+  v_int32 Connection::SslHandshakeError::getErrorCode() const {
+  return m_errorCode;
+  }
+  
+  const char* Connection::SslHandshakeError::getMessage() const {
+  return m_message;
+  }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ConnectionContext
 
 std::mutex Connection::ConnectionContext::HANDSHAKE_MUTEX;
@@ -96,9 +113,10 @@ void Connection::ConnectionContext::init() {
       if(res == 0) {
         break;
       } else if (res != MBEDTLS_ERR_SSL_WANT_READ && res != MBEDTLS_ERR_SSL_WANT_WRITE) {
-//        v_char8 buff[512];
-//        mbedtls_strerror(res, (char *) &buff, 512);
-//        OATPP_LOGE("[oatpp::mbedtls::Connection::ConnectionContext::init()]", "Error. Handshake failed. Return value=%d. '%s'", res, buff);
+        v_char8 buff[512];
+        mbedtls_strerror(res, (char *)&buff, 512);
+        OATPP_LOGE("[oatpp::mbedtls::Connection::ConnectionContext::init()]", "Error. Handshake failed. Return value=%d. '%s'", res, buff);
+        throw SslHandshakeError(res, "[oatpp::mbedtls::Connection::ConnectionContext::init()]: Error. SSL Handshake failed");
         break;
       }
 
