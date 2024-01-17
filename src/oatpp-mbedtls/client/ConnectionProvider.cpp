@@ -78,6 +78,10 @@ std::shared_ptr<ConnectionProvider> ConnectionProvider::createShared(const std::
   );
 }
 
+void ConnectionProvider::stop() {
+  m_streamProvider->stop();
+}
+
 provider::ResourceHandle<data::stream::IOStream> ConnectionProvider::get(){
 
   v_int32 flags;
