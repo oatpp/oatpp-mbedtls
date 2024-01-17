@@ -78,11 +78,9 @@ public:
                                                           const network::Address& address);
 
   /**
-   * Implements &id:oatpp::network::ConnectionProvider::close;. Here does nothing.
+   * Implements &id:oatpp::network::ConnectionProvider::close;
    */
-  void stop() override {
-    // DO NOTHING
-  }
+  void stop() override;
 
   /**
    * Get connection.
